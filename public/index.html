@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="VoterPath — Your interactive, AI-powered guide to the US election process. Understand registration, research candidates, cast your ballot, and follow the count." />
+  <meta name="theme-color" content="#0d1b3e" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="VoterPath — Interactive Election Assistant" />
+  <meta property="og:description" content="Demystifying democracy, one step at a time." />
+  <meta property="og:type" content="website" />
+
+  <title>VoterPath — Interactive Election Assistant</title>
+
+  <!-- Preconnect for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet" />
+
+  <!-- Google Analytics 4 -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-PLACEHOLDER"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-PLACEHOLDER', { anonymize_ip: true });
+  </script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ♿ Skip Navigation Link (WCAG 2.4.1) -->
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
+  <!-- ── Fixed Progress Bar ───────────────────────────────────────────── -->
+  <div id="progress-bar" role="progressbar" aria-label="Reading progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+
+  <!-- ── Navigation ───────────────────────────────────────────────────── -->
+  <nav class="top-nav" aria-label="Main navigation">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo" aria-label="VoterPath Home">
+        <span class="logo-icon" aria-hidden="true">🗳️</span>
+        <span>VoterPath</span>
+      </a>
+      <ol class="phase-nav" aria-label="Election phases">
+        <li><a href="#phase-1" class="phase-link" aria-label="Phase 1: Registration">Registration</a></li>
+        <li><a href="#phase-2" class="phase-link" aria-label="Phase 2: Research">Research</a></li>
+        <li><a href="#phase-3" class="phase-link" aria-label="Phase 3: Voting">Voting</a></li>
+        <li><a href="#phase-4" class="phase-link" aria-label="Phase 4: The Count">The Count</a></li>
+      </ol>
+      <button id="theme-toggle" class="theme-btn" aria-label="Toggle dark/light mode" aria-pressed="true">
+        <span id="theme-icon" aria-hidden="true">☀️</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ── Hero ─────────────────────────────────────────────────────────── -->
+  <header class="hero" role="banner">
+    <div class="hero-bg" aria-hidden="true">
+      <div class="hero-orb orb-1"></div>
+      <div class="hero-orb orb-2"></div>
+      <div class="hero-orb orb-3"></div>
+    </div>
+    <div class="hero-content">
+      <p class="hero-eyebrow">A Guide for Every American</p>
+      <h1>Your Vote.<br/><span class="gradient-text">Your Voice.</span></h1>
+      <p class="hero-sub">Follow the election journey from registration to the final count — with a Gemini-powered assistant by your side.</p>
+      <div class="hero-actions">
+        <button id="start-journey" class="btn btn-primary">
+          <span>Begin the Journey</span>
+          <span class="btn-arrow" aria-hidden="true">↓</span>
+        </button>
+        <button id="open-chat-hero" class="btn btn-secondary">
+          <span aria-hidden="true">✨</span> Ask the AI
+        </button>
+      </div>
+    </div>
+    <div class="scroll-hint" aria-hidden="true">
+      <div class="scroll-mouse"></div>
+      <span>Scroll to explore</span>
+    </div>
+  </header>
+
+  <!-- ── Main Timeline ─────────────────────────────────────────────────── -->
+  <main id="main-content" class="timeline-container" aria-label="Election process timeline">
+    <div class="timeline-spine" aria-hidden="true"></div>
+
+    <!-- Phase 1: Registration -->
+    <article class="timeline-node reveal" id="phase-1" aria-labelledby="phase-1-title" aria-current="false">
+      <div class="node-marker" aria-hidden="true">
+        <span class="node-number">1</span>
+        <div class="node-pulse"></div>
+      </div>
+      <div class="node-card glass">
+        <div class="node-header">
+          <span class="phase-emoji" aria-hidden="true">📋</span>
+          <div>
+            <p class="phase-label">Phase 1</p>
+            <h2 id="phase-1-title">Preparation & Registration</h2>
+          </div>
+        </div>
+        <p class="node-summary">Before you can vote, you need to be on the list. Check your status and register early — deadlines vary by state.</p>
+        <ul class="checklist" aria-label="Registration checklist">
+          <li>
+            <span class="check-icon" aria-hidden="true">✓</span>
+            <span>Confirm you're a US citizen aged 18+ and a state resident</span>
+          </li>
+          <li>
+            <span class="check-icon" aria-hidden="true">✓</span>
+            <span>
+              <button class="jargon" id="tip-reg-deadline" aria-describedby="tooltip-reg-deadline" aria-expanded="false">Registration deadline</button>
+              <span class="tooltip" id="tooltip-reg-deadline" role="tooltip" aria-hidden="true">The final date your state accepts new voter registrations. Typically 15–30 days before an election, but some states allow same-day registration.</span>
+              is usually 15–30 days before the election
+            </span>
+          </li>
+          <li>
+            <span class="check-icon" aria-hidden="true">✓</span>
+            <span>Verify your address after moving — registration doesn't transfer automatically</span>
+          </li>
+        </ul>
+        <div class="state-selector-wrapper">
+          <label for="state-select" class="state-label">Get your state's deadline:</label>
+          <select id="state-select" class="state-select" aria-label="Select your state for registration deadline">
+            <option value="">-- Select your state --</option>
+          </select>
+          <div id="state-info" class="state-info" aria-live="polite" aria-atomic="true"></div>
+        </div>
+        <a href="https://www.vote.gov/register/" target="_blank" rel="noopener noreferrer" class="card-link">
+          Register to Vote →
+        </a>
+      </div>
+    </article>
+
+    <!-- Phase 2: Research -->
+    <article class="timeline-node reveal" id="phase-2" aria-labelledby="phase-2-title" aria-current="false">
+      <div class="node-marker" aria-hidden="true">
+        <span class="node-number">2</span>
+        <div class="node-pulse"></div>
+      </div>
+      <div class="node-card glass">
+        <div class="node-header">
+          <span class="phase-emoji" aria-hidden="true">🔍</span>
+          <div>
+            <p class="phase-label">Phase 2</p>
+            <h2 id="phase-2-title">Education & Research</h2>
+          </div>
+        </div>
+        <p class="node-summary">An informed vote is a powerful vote. Learn how elections are structured and how to find trustworthy information.</p>
+        <div class="info-grid">
+          <div class="info-card">
+            <h3>Types of Elections</h3>
+            <p>
+              <button class="jargon" id="tip-primary" aria-describedby="tooltip-primary" aria-expanded="false">Primaries</button>
+              <span class="tooltip" id="tooltip-primary" role="tooltip" aria-hidden="true">An election within a political party to choose who will represent that party in the general election. Open primaries let any voter participate; closed primaries are party-members only.</span>
+              narrow the field. General elections decide winners. Local elections happen year-round.
+            </p>
+          </div>
+          <div class="info-card">
+            <h3>Ballot Measures</h3>
+            <p>
+              <button class="jargon" id="tip-ballot" aria-describedby="tooltip-ballot" aria-expanded="false">Ballot measures</button>
+              <span class="tooltip" id="tooltip-ballot" role="tooltip" aria-hidden="true">Laws or policy changes that citizens vote on directly, bypassing the legislature. Also called propositions, initiatives, or referendums depending on the state.</span>
+              let you vote directly on laws, not just candidates. Read the full text.
+            </p>
+          </div>
+        </div>
+        <div class="resource-list">
+          <h3>Nonpartisan Research Resources</h3>
+          <ul aria-label="Research resources">
+            <li><a href="https://ballotpedia.org" target="_blank" rel="noopener noreferrer">Ballotpedia — Candidate profiles & ballot measures</a></li>
+            <li><a href="https://www.vote411.org" target="_blank" rel="noopener noreferrer">VOTE411 — Voter guide by League of Women Voters</a></li>
+            <li><a href="https://www.usa.gov/absentee-voting" target="_blank" rel="noopener noreferrer">USA.gov — Official election information</a></li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <!-- Phase 3: Action -->
+    <article class="timeline-node reveal" id="phase-3" aria-labelledby="phase-3-title" aria-current="false">
+      <div class="node-marker" aria-hidden="true">
+        <span class="node-number">3</span>
+        <div class="node-pulse"></div>
+      </div>
+      <div class="node-card glass">
+        <div class="node-header">
+          <span class="phase-emoji" aria-hidden="true">🗳️</span>
+          <div>
+            <p class="phase-label">Phase 3</p>
+            <h2 id="phase-3-title">Action: Cast Your Ballot</h2>
+          </div>
+        </div>
+        <p class="node-summary">It's time. Choose the voting method that works best for you — all are equally valid.</p>
+        <div class="voting-options" role="list">
+          <div class="voting-option" role="listitem">
+            <span class="option-icon" aria-hidden="true">📬</span>
+            <div>
+              <h3>
+                <button class="jargon" id="tip-mailin" aria-describedby="tooltip-mailin" aria-expanded="false">Mail-in Ballot</button>
+                <span class="tooltip" id="tooltip-mailin" role="tooltip" aria-hidden="true">Also called an Absentee Ballot. You request a ballot by mail, fill it out at home, and return it by mail or drop box. Available to all voters in most states.</span>
+              </h3>
+              <p>Request early, sign the envelope, track it online.</p>
+            </div>
+          </div>
+          <div class="voting-option" role="listitem">
+            <span class="option-icon" aria-hidden="true">📅</span>
+            <div>
+              <h3>
+                <button class="jargon" id="tip-early" aria-describedby="tooltip-early" aria-expanded="false">Early Voting</button>
+                <span class="tooltip" id="tooltip-early" role="tooltip" aria-hidden="true">In-person voting that begins days or weeks before Election Day at designated polling locations. Helps you avoid Election Day lines and schedule conflicts.</span>
+              </h3>
+              <p>In-person, before Election Day. Avoid the rush.</p>
+            </div>
+          </div>
+          <div class="voting-option" role="listitem">
+            <span class="option-icon" aria-hidden="true">🏛️</span>
+            <div>
+              <h3>Election Day</h3>
+              <p>Polls open 7 AM – 8 PM. Bring valid ID. Lines are worth it.</p>
+            </div>
+          </div>
+        </div>
+        <a href="https://www.vote.gov/find-your-polling-place/" target="_blank" rel="noopener noreferrer" class="card-link">
+          Find Your Polling Place →
+        </a>
+      </div>
+    </article>
+
+    <!-- Phase 4: The Count -->
+    <article class="timeline-node reveal" id="phase-4" aria-labelledby="phase-4-title" aria-current="false">
+      <div class="node-marker" aria-hidden="true">
+        <span class="node-number">4</span>
+        <div class="node-pulse"></div>
+      </div>
+      <div class="node-card glass">
+        <div class="node-header">
+          <span class="phase-emoji" aria-hidden="true">📊</span>
+          <div>
+            <p class="phase-label">Phase 4</p>
+            <h2 id="phase-4-title">The Count & Certification</h2>
+          </div>
+        </div>
+        <p class="node-summary">The polls close, but democracy doesn't stop. Here's what happens between Election Night and Inauguration Day.</p>
+        <ol class="timeline-steps" aria-label="Post-election timeline">
+          <li>
+            <strong>Election Night:</strong> Media projections are called, but they are <em>not</em> official.
+          </li>
+          <li>
+            <strong>Weeks 1–3:</strong> All ballots (including mail-in) are officially counted and certified by each state.
+          </li>
+          <li>
+            <strong>December:</strong> The
+            <button class="jargon" id="tip-ec" aria-describedby="tooltip-ec" aria-expanded="false">Electoral College</button>
+            <span class="tooltip" id="tooltip-ec" role="tooltip" aria-hidden="true">A body of 538 electors who formally elect the President. Each state gets electors equal to its Congressional delegation. A candidate needs 270 electoral votes to win.</span>
+            electors cast official votes in their state capitals.
+          </li>
+          <li>
+            <strong>January 6:</strong> Congress counts and certifies the Electoral College results.
+          </li>
+          <li>
+            <strong>January 20:</strong> Inauguration Day — the new President is sworn in.
+          </li>
+        </ol>
+      </div>
+    </article>
+
+    <!-- CTA Section -->
+    <section class="cta-section reveal" aria-labelledby="cta-title">
+      <div class="cta-card glass">
+        <span class="cta-icon" aria-hidden="true">🇺🇸</span>
+        <h2 id="cta-title">Ready to exercise your right?</h2>
+        <p>Democracy works when people participate. Every vote is a voice.</p>
+        <div class="cta-buttons">
+          <a href="https://www.vote.org/am-i-registered-to-vote/" target="_blank" rel="noopener noreferrer" class="btn btn-primary">Check My Registration</a>
+          <button id="open-chat-cta" class="btn btn-secondary">
+            <span aria-hidden="true">✨</span> Ask a Question
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ── Footer ────────────────────────────────────────────────────────── -->
+  <footer role="contentinfo">
+    <div class="footer-inner">
+      <p>
+        <strong>VoterPath</strong> — Built with ❤️ and Google Gemini AI.
+        Information is non-partisan and sourced from official government resources.
+      </p>
+      <p class="footer-links">
+        <a href="https://vote.gov" target="_blank" rel="noopener noreferrer">vote.gov</a> ·
+        <a href="https://www.usa.gov/elections" target="_blank" rel="noopener noreferrer">usa.gov/elections</a> ·
+        <a href="https://www.vote411.org" target="_blank" rel="noopener noreferrer">vote411.org</a>
+      </p>
+    </div>
+  </footer>
+
+  <!-- ── AI Chat Panel ──────────────────────────────────────────────────── -->
+  <div id="chat-panel" class="chat-panel" role="dialog" aria-modal="true" aria-label="VoterPath AI Assistant" aria-hidden="true">
+    <div class="chat-header">
+      <div class="chat-title">
+        <span aria-hidden="true">✨</span>
+        <strong>VoterPath AI</strong>
+        <span class="chat-badge">Powered by Gemini</span>
+      </div>
+      <button id="close-chat" class="chat-close" aria-label="Close AI assistant">✕</button>
+    </div>
+    <div id="chat-messages" class="chat-messages" aria-live="polite" aria-atomic="false" aria-relevant="additions">
+      <div class="chat-msg ai">
+        <p>👋 Hi! I'm your VoterPath AI assistant, powered by Google Gemini. Ask me anything about the US election process — registration deadlines, how voting works, what to bring on Election Day, and more!</p>
+      </div>
+    </div>
+    <div class="chat-input-area">
+      <label for="chat-input" class="visually-hidden">Ask a question about elections</label>
+      <input
+        id="chat-input"
+        class="chat-input"
+        type="text"
+        placeholder="Ask about elections…"
+        maxlength="500"
+        autocomplete="off"
+        aria-label="Type your election question"
+      />
+      <button id="chat-send" class="chat-send-btn" aria-label="Send message">
+        <span aria-hidden="true">➤</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Chat Trigger Button ───────────────────────────────────────────── -->
+  <button id="chat-fab" class="chat-fab" aria-label="Open AI assistant" aria-expanded="false" aria-controls="chat-panel">
+    <span class="fab-icon" aria-hidden="true">✨</span>
+    <span class="fab-label">Ask AI</span>
+  </button>
+
+  <script src="script.js"></script>
+</body>
+</html>
