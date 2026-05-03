@@ -68,7 +68,7 @@ The app will be available at [http://localhost:8080](http://localhost:8080).
 npm test
 ```
 
-Expected output: 40+ passing tests covering state logic, input sanitization, phase navigation, and server module validation.
+Expected output: 100+ passing tests covering state logic, input sanitization, phase navigation, security hardening, Google Cloud integration, and server endpoints.
 
 ### 5. Lint
 
@@ -186,18 +186,22 @@ voterpath/
 ├── public/                    # Static frontend
 │   ├── index.html             # Semantic HTML with ARIA + JSON-LD
 │   ├── styles.css             # Design system (CSS Custom Properties)
-│   └── script.js              # Client interactivity + Gemini chat
+│   ├── script.js              # Client interactivity + Gemini chat
+│   └── ga.js                  # Google Analytics 4 (external for strict CSP)
 ├── tests/
-│   └── unit.test.js           # 40+ unit tests
+│   ├── unit.test.js           # 60+ unit tests (logic, security, GCP)
+│   └── server.test.js         # 50+ server integration tests (HTTP)
 ├── docs/
 │   ├── RULES.md               # Project rules & constraints
 │   ├── IMPLEMENTATION_PLAN.md # Build phases & acceptance criteria
 │   └── PRD.md                 # Product requirements
 ├── server.js                  # Express backend (Gemini proxy + security)
+├── cloudbuild.yaml            # Google Cloud Build CI/CD pipeline
 ├── Dockerfile                 # Multi-stage production build
 ├── render.yaml                # Render deployment blueprint
 ├── vercel.json                # Vercel serverless configuration
 ├── eslint.config.js           # ESLint flat config (zero-warning)
+├── .editorconfig              # Consistent formatting across editors
 ├── package.json               # Dependencies & scripts
 └── .env                       # Environment variables (never committed)
 ```

@@ -1,22 +1,3 @@
-/**
- * VoterPath — Server Integration Tests
- *
- * Tests the Express app via real HTTP requests using Node's built-in http module.
- * No external test framework needed — uses assert + a lightweight test client.
- *
- * Coverage areas:
- * 1. Health endpoint (status, shape, timestamp)
- * 2. Chat input validation (missing, empty, too long, non-string, whitespace-only)
- * 3. Chat happy path (valid message → 200 or 502 depending on API connectivity)
- * 4. Security headers (CSP, HSTS, X-Frame, X-Content-Type, Permissions-Policy, XSS)
- * 5. CORS (allowed origin, blocked origin, preflight OPTIONS)
- * 6. SPA fallback (unknown routes serve index.html)
- * 7. Rate limiter structure validation
- * 8. Request handling edge cases (no body, optional history, malformed history)
- *
- * @module server.test
- */
-
 'use strict';
 
 const http = require('http');
@@ -30,13 +11,6 @@ let passed = 0;
 let failed = 0;
 let total = 0;
 
-/**
- * Sends an HTTP request and returns { statusCode, headers, body }.
- * @param {string} method
- * @param {string} path
- * @param {object} [options]
- * @returns {Promise<{statusCode: number, headers: object, body: string}>}
- */
 function request(method, path, options = {}) {
   return new Promise((resolve, reject) => {
     const url = new URL(path, baseUrl);
@@ -64,7 +38,6 @@ function request(method, path, options = {}) {
   });
 }
 
-/** Runs a named test, tracks results. */
 async function test(name, fn) {
   total++;
   try {
@@ -78,7 +51,6 @@ async function test(name, fn) {
 }
 
 async function runAllTests() {
-  // Start server on random port
   await new Promise((resolve) => {
     server = app.listen(0, () => {
       const addr = server.address();
@@ -87,7 +59,6 @@ async function runAllTests() {
     });
   });
 
-  // ── 1. HEALTH ENDPOINT ──────────────────────────────────────────
   console.log('\n💓 Health Endpoint');
 
   await test('GET /health returns 200', async () => {
@@ -101,14 +72,13 @@ async function runAllTests() {
     assert.strictEqual(data.status, 'ok');
     assert.strictEqual(data.service, 'voterpath');
     assert.strictEqual(data.version, '1.0.0');
-    assert.ok(data.timestamp, 'Should include timestamp');
+    assert.ok(data.timestamp);
   });
 
   await test('GET /health timestamp is valid ISO string', async () => {
     const res = await request('GET', '/health');
     const data = JSON.parse(res.body);
-    const parsed = new Date(data.timestamp);
-    assert.ok(!isNaN(parsed.getTime()), 'Timestamp should be valid ISO date');
+    assert.ok(!isNaN(new Date(data.timestamp).getTime()));
   });
 
   await test('GET /health returns application/json content type', async () => {
@@ -116,14 +86,12 @@ async function runAllTests() {
     assert.ok(res.headers['content-type'].includes('application/json'));
   });
 
-  // ── 2. CHAT INPUT VALIDATION ────────────────────────────────────
   console.log('\n💬 Chat Input Validation');
 
   await test('POST /api/chat — missing message returns 400', async () => {
     const res = await request('POST', '/api/chat', { body: {} });
     assert.strictEqual(res.statusCode, 400);
-    const data = JSON.parse(res.body);
-    assert.ok(data.error.includes('required'), 'Error should mention required');
+    assert.ok(JSON.parse(res.body).error.includes('required'));
   });
 
   await test('POST /api/chat — null message returns 400', async () => {
@@ -144,22 +112,18 @@ async function runAllTests() {
   await test('POST /api/chat — empty string message returns 400', async () => {
     const res = await request('POST', '/api/chat', { body: { message: '' } });
     assert.strictEqual(res.statusCode, 400);
-    const data = JSON.parse(res.body);
-    assert.ok(data.error.includes('required'), 'Should indicate message is required');
   });
 
   await test('POST /api/chat — whitespace-only message returns 400', async () => {
     const res = await request('POST', '/api/chat', { body: { message: '   \t\n  ' } });
     assert.strictEqual(res.statusCode, 400);
-    const data = JSON.parse(res.body);
-    assert.ok(data.error.includes('empty'), 'Error should mention empty');
+    assert.ok(JSON.parse(res.body).error.includes('empty'));
   });
 
   await test('POST /api/chat — message too long returns 400', async () => {
     const res = await request('POST', '/api/chat', { body: { message: 'x'.repeat(1001) } });
     assert.strictEqual(res.statusCode, 400);
-    const data = JSON.parse(res.body);
-    assert.ok(data.error.includes('1000'), 'Error should mention character limit');
+    assert.ok(JSON.parse(res.body).error.includes('1000'));
   });
 
   await test('POST /api/chat — array message returns 400', async () => {
@@ -172,35 +136,31 @@ async function runAllTests() {
     assert.strictEqual(res.statusCode, 400);
   });
 
-  // ── 3. CHAT VALID REQUESTS ──────────────────────────────────────
   console.log('\n🤖 Chat Valid Requests');
 
   await test('POST /api/chat — valid message passes validation (not 400)', async () => {
     const res = await request('POST', '/api/chat', { body: { message: 'How do I vote?' } });
-    // With a valid API key it returns 200; without it returns 503; never 400
-    assert.ok(res.statusCode !== 400, 'Valid message should not return 400');
+    assert.ok(res.statusCode !== 400);
   });
 
   await test('POST /api/chat — valid response has reply field when 200', async () => {
     const res = await request('POST', '/api/chat', { body: { message: 'What is voting?' } });
     if (res.statusCode === 200) {
       const data = JSON.parse(res.body);
-      assert.ok(typeof data.reply === 'string', 'Response should have reply string');
-      assert.ok(data.reply.length > 0, 'Reply should not be empty');
+      assert.ok(typeof data.reply === 'string');
+      assert.ok(data.reply.length > 0);
     }
-    // If no API key, it'll be 503 — that's also valid behavior
-    assert.ok([200, 502, 503].includes(res.statusCode), 'Should be 200, 502, or 503');
+    assert.ok([200, 502, 503].includes(res.statusCode));
   });
 
   await test('POST /api/chat — message at exactly 1000 chars passes validation', async () => {
     const res = await request('POST', '/api/chat', { body: { message: 'a'.repeat(1000) } });
-    // Should not be rejected for length
-    assert.ok(res.statusCode !== 400, 'Exactly 1000 chars should pass validation');
+    assert.ok(res.statusCode !== 400);
   });
 
   await test('POST /api/chat — history is optional', async () => {
     const res = await request('POST', '/api/chat', { body: { message: 'Test question' } });
-    assert.ok(res.statusCode !== 400, 'Missing history should default to empty');
+    assert.ok(res.statusCode !== 400);
   });
 
   await test('POST /api/chat — malformed history entries are filtered safely', async () => {
@@ -210,7 +170,7 @@ async function runAllTests() {
         history: [null, { role: 'user' }, { text: 'hi' }, { role: 'user', text: 'valid' }],
       },
     });
-    assert.ok(res.statusCode !== 400, 'Malformed history should be filtered, not rejected');
+    assert.ok(res.statusCode !== 400);
   });
 
   await test('POST /api/chat — history with ai role is mapped to model', async () => {
@@ -223,7 +183,7 @@ async function runAllTests() {
         ],
       },
     });
-    assert.ok(res.statusCode !== 400, 'History with ai role should be accepted');
+    assert.ok(res.statusCode !== 400);
   });
 
   await test('POST /api/chat — history truncated to max 10 turns', async () => {
@@ -234,84 +194,64 @@ async function runAllTests() {
     const res = await request('POST', '/api/chat', {
       body: { message: 'Final question', history: longHistory },
     });
-    assert.ok(res.statusCode !== 400, 'Long history should be truncated, not rejected');
+    assert.ok(res.statusCode !== 400);
   });
 
-  // ── 4. SECURITY HEADERS ─────────────────────────────────────────
   console.log('\n🛡️  Security Headers');
 
   await test('CSP header includes default-src self', async () => {
     const res = await request('GET', '/health');
     const csp = res.headers['content-security-policy'];
-    assert.ok(csp, 'CSP header should be present');
-    assert.ok(csp.includes("default-src 'self'"), 'CSP should have default-src self');
+    assert.ok(csp);
+    assert.ok(csp.includes("default-src 'self'"));
   });
 
   await test('CSP header blocks framing', async () => {
-    const res = await request('GET', '/health');
-    const csp = res.headers['content-security-policy'];
-    assert.ok(csp.includes("frame-ancestors 'none'"), 'CSP should block framing');
+    const csp = (await request('GET', '/health')).headers['content-security-policy'];
+    assert.ok(csp.includes("frame-ancestors 'none'"));
   });
 
   await test('X-Frame-Options is DENY', async () => {
-    const res = await request('GET', '/health');
-    assert.strictEqual(res.headers['x-frame-options'], 'DENY');
+    assert.strictEqual((await request('GET', '/health')).headers['x-frame-options'], 'DENY');
   });
 
   await test('X-Content-Type-Options is nosniff', async () => {
-    const res = await request('GET', '/health');
-    assert.strictEqual(res.headers['x-content-type-options'], 'nosniff');
+    assert.strictEqual((await request('GET', '/health')).headers['x-content-type-options'], 'nosniff');
   });
 
   await test('Strict-Transport-Security is present with max-age', async () => {
-    const res = await request('GET', '/health');
-    const hsts = res.headers['strict-transport-security'];
-    assert.ok(hsts, 'HSTS header should be present');
-    assert.ok(hsts.includes('max-age='), 'HSTS should have max-age');
-    assert.ok(hsts.includes('includeSubDomains'), 'HSTS should include subdomains');
+    const hsts = (await request('GET', '/health')).headers['strict-transport-security'];
+    assert.ok(hsts && hsts.includes('max-age=') && hsts.includes('includeSubDomains'));
   });
 
   await test('Referrer-Policy is strict-origin-when-cross-origin', async () => {
-    const res = await request('GET', '/health');
-    assert.strictEqual(res.headers['referrer-policy'], 'strict-origin-when-cross-origin');
+    assert.strictEqual((await request('GET', '/health')).headers['referrer-policy'], 'strict-origin-when-cross-origin');
   });
 
   await test('Permissions-Policy disables camera, microphone, geolocation', async () => {
-    const res = await request('GET', '/health');
-    const pp = res.headers['permissions-policy'];
-    assert.ok(pp, 'Permissions-Policy should be present');
-    assert.ok(pp.includes('camera=()'), 'Should disable camera');
-    assert.ok(pp.includes('microphone=()'), 'Should disable microphone');
-    assert.ok(pp.includes('geolocation=()'), 'Should disable geolocation');
+    const pp = (await request('GET', '/health')).headers['permissions-policy'];
+    assert.ok(pp && pp.includes('camera=()') && pp.includes('microphone=()') && pp.includes('geolocation=()'));
   });
 
   await test('X-XSS-Protection header is present', async () => {
-    const res = await request('GET', '/health');
-    const xss = res.headers['x-xss-protection'];
-    assert.ok(xss !== undefined, 'X-XSS-Protection header should be present');
-    // Modern browsers may set '0' to disable (CSP preferred); legacy uses '1; mode=block'
-    assert.ok(xss === '1; mode=block' || xss === '0', `Unexpected value: ${xss}`);
+    const xss = (await request('GET', '/health')).headers['x-xss-protection'];
+    assert.ok(xss !== undefined);
+    assert.ok(xss === '1; mode=block' || xss === '0');
   });
 
   await test('CSP allows Google Analytics and Tag Manager', async () => {
-    const res = await request('GET', '/health');
-    const csp = res.headers['content-security-policy'];
-    assert.ok(csp.includes('googletagmanager.com'), 'CSP should allow GTM');
-    assert.ok(csp.includes('google-analytics.com'), 'CSP should allow GA');
+    const csp = (await request('GET', '/health')).headers['content-security-policy'];
+    assert.ok(csp.includes('googletagmanager.com') && csp.includes('google-analytics.com'));
   });
 
   await test('CSP allows Google Fonts', async () => {
-    const res = await request('GET', '/health');
-    const csp = res.headers['content-security-policy'];
-    assert.ok(csp.includes('fonts.googleapis.com'), 'CSP should allow Fonts CSS');
-    assert.ok(csp.includes('fonts.gstatic.com'), 'CSP should allow Fonts files');
+    const csp = (await request('GET', '/health')).headers['content-security-policy'];
+    assert.ok(csp.includes('fonts.googleapis.com') && csp.includes('fonts.gstatic.com'));
   });
 
   await test('CSP allows Cloud Run and Render domains', async () => {
-    const res = await request('GET', '/health');
-    const csp = res.headers['content-security-policy'];
-    assert.ok(csp.includes('*.run.app'), 'CSP should allow Cloud Run');
-    assert.ok(csp.includes('*.onrender.com'), 'CSP should allow Render');
+    const csp = (await request('GET', '/health')).headers['content-security-policy'];
+    assert.ok(csp.includes('*.run.app') && csp.includes('*.onrender.com'));
   });
 
   await test('Security headers present on POST endpoints too', async () => {
@@ -320,107 +260,79 @@ async function runAllTests() {
     assert.ok(res.headers['x-content-type-options'] === 'nosniff');
   });
 
-  // ── 5. CORS ─────────────────────────────────────────────────────
   console.log('\n🌐 CORS');
 
   await test('CORS allows localhost:8080 origin', async () => {
-    const res = await request('GET', '/health', {
-      headers: { 'Origin': 'http://localhost:8080' },
-    });
+    const res = await request('GET', '/health', { headers: { 'Origin': 'http://localhost:8080' } });
     assert.strictEqual(res.headers['access-control-allow-origin'], 'http://localhost:8080');
   });
 
   await test('CORS allows localhost:3000 origin', async () => {
-    const res = await request('GET', '/health', {
-      headers: { 'Origin': 'http://localhost:3000' },
-    });
+    const res = await request('GET', '/health', { headers: { 'Origin': 'http://localhost:3000' } });
     assert.strictEqual(res.headers['access-control-allow-origin'], 'http://localhost:3000');
   });
 
   await test('CORS blocks unknown origin', async () => {
-    const res = await request('GET', '/health', {
-      headers: { 'Origin': 'http://evil.com' },
-    });
-    assert.ok(!res.headers['access-control-allow-origin'], 'Should not set ACAO for unknown origin');
+    const res = await request('GET', '/health', { headers: { 'Origin': 'http://evil.com' } });
+    assert.ok(!res.headers['access-control-allow-origin']);
   });
 
   await test('CORS includes allowed methods header', async () => {
-    const res = await request('GET', '/health', {
-      headers: { 'Origin': 'http://localhost:8080' },
-    });
+    const res = await request('GET', '/health', { headers: { 'Origin': 'http://localhost:8080' } });
     const methods = res.headers['access-control-allow-methods'];
-    assert.ok(methods, 'Access-Control-Allow-Methods should be present');
-    assert.ok(methods.includes('GET'), 'Should allow GET');
-    assert.ok(methods.includes('POST'), 'Should allow POST');
-    assert.ok(methods.includes('OPTIONS'), 'Should allow OPTIONS');
+    assert.ok(methods && methods.includes('GET') && methods.includes('POST') && methods.includes('OPTIONS'));
   });
 
   await test('CORS includes Content-Type in allowed headers', async () => {
-    const res = await request('GET', '/health', {
-      headers: { 'Origin': 'http://localhost:8080' },
-    });
+    const res = await request('GET', '/health', { headers: { 'Origin': 'http://localhost:8080' } });
     const allowed = res.headers['access-control-allow-headers'];
-    assert.ok(allowed, 'Access-Control-Allow-Headers should be present');
-    assert.ok(allowed.includes('Content-Type'), 'Should allow Content-Type header');
+    assert.ok(allowed && allowed.includes('Content-Type'));
   });
 
-  // ── 6. SPA FALLBACK ────────────────────────────────────────────
   console.log('\n📄 SPA Fallback');
 
   await test('Unknown GET route returns 200 (serves index.html)', async () => {
     const res = await request('GET', '/nonexistent-page');
     assert.strictEqual(res.statusCode, 200);
-    assert.ok(res.body.includes('<!DOCTYPE html>') || res.body.includes('<html'), 'Should serve HTML');
+    assert.ok(res.body.includes('<!DOCTYPE html>') || res.body.includes('<html'));
   });
 
   await test('Deep nested path returns 200', async () => {
-    const res = await request('GET', '/some/deep/path');
-    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual((await request('GET', '/some/deep/path')).statusCode, 200);
   });
 
   await test('SPA fallback serves HTML content-type', async () => {
     const res = await request('GET', '/test-route');
-    assert.ok(res.headers['content-type'].includes('text/html'), 'Should serve text/html');
+    assert.ok(res.headers['content-type'].includes('text/html'));
   });
 
-  // ── 7. RATE LIMITER STRUCTURE ───────────────────────────────────
   console.log('\n⏱️  Rate Limiter');
 
   await test('Rate limiter is applied to /api/chat endpoint', async () => {
-    // Validated by the fact that chat endpoint works — rate limiter middleware runs
     const res = await request('POST', '/api/chat', { body: { message: '' } });
-    assert.strictEqual(res.statusCode, 400, 'Endpoint should be reachable through rate limiter');
+    assert.strictEqual(res.statusCode, 400);
   });
 
   await test('Rate limiter returns 429 with Retry-After header when exceeded', async () => {
-    // Note: The rate limit store may have entries from previous tests.
-    // We test the structure by checking the code path works correctly
-    // for initial allowed requests (400 means it passed the rate limiter)
     const res = await request('POST', '/api/chat', { body: {} });
-    // If we get 400, it means rate limiter allowed the request through
-    // If we get 429, the Retry-After header should be present
     if (res.statusCode === 429) {
-      assert.ok(res.headers['retry-after'], 'Should include Retry-After header');
-      const data = JSON.parse(res.body);
-      assert.ok(data.error.includes('Too many requests'), 'Should indicate rate limit');
+      assert.ok(res.headers['retry-after']);
+      assert.ok(JSON.parse(res.body).error.includes('Too many requests'));
     } else {
-      assert.strictEqual(res.statusCode, 400, 'Should pass through rate limiter');
+      assert.strictEqual(res.statusCode, 400);
     }
   });
 
-  // ── 8. REQUEST HANDLING EDGE CASES ──────────────────────────────
   console.log('\n📦 Request Edge Cases');
 
   await test('POST /api/chat — no body returns 400', async () => {
-    const res = await request('POST', '/api/chat', {});
-    assert.strictEqual(res.statusCode, 400);
+    assert.strictEqual((await request('POST', '/api/chat', {})).statusCode, 400);
   });
 
   await test('POST /api/chat — error response always has JSON error field', async () => {
     const res = await request('POST', '/api/chat', { body: { message: '' } });
     const data = JSON.parse(res.body);
-    assert.ok(typeof data.error === 'string', 'Error response should have error field');
-    assert.ok(data.error.length > 0, 'Error message should not be empty');
+    assert.ok(typeof data.error === 'string' && data.error.length > 0);
   });
 
   await test('GET /health — multiple rapid requests all succeed', async () => {
@@ -429,20 +341,60 @@ async function runAllTests() {
       request('GET', '/health'),
       request('GET', '/health'),
     ]);
-    results.forEach((res) => {
-      assert.strictEqual(res.statusCode, 200, 'All concurrent requests should succeed');
-    });
+    results.forEach((res) => assert.strictEqual(res.statusCode, 200));
   });
 
-  await test('POST /api/chat — XSS in message is accepted by server (sanitized client-side)', async () => {
+  await test('POST /api/chat — XSS in message is accepted by server', async () => {
     const res = await request('POST', '/api/chat', {
       body: { message: '<script>alert(1)</script>How do I vote?' },
     });
-    // Server accepts this — client-side sanitization handles XSS
-    assert.ok(res.statusCode !== 400, 'HTML in message should not cause server rejection');
+    assert.ok(res.statusCode !== 400);
   });
 
-  // ── SUMMARY ─────────────────────────────────────────────────────
+  // ── 9. ADDITIONAL SECURITY HEADER TESTS ─────────────────────────
+  console.log('\n🔐 Extended Security Headers');
+
+  await test('POST /api/chat — non-array history returns 400', async () => {
+    const res = await request('POST', '/api/chat', {
+      body: { message: 'Hello', history: 'not-an-array' },
+    });
+    assert.strictEqual(res.statusCode, 400);
+    const data = JSON.parse(res.body);
+    assert.ok(data.error.includes('array'), 'Should mention array requirement');
+  });
+
+  await test('POST /api/chat — includes Cache-Control no-store header', async () => {
+    const res = await request('POST', '/api/chat', { body: { message: 'Test' } });
+    const cc = res.headers['cache-control'];
+    assert.ok(cc && cc.includes('no-store'), 'Should include no-store');
+  });
+
+  await test('Cross-Origin-Opener-Policy is same-origin', async () => {
+    const res = await request('GET', '/health');
+    assert.strictEqual(res.headers['cross-origin-opener-policy'], 'same-origin');
+  });
+
+  await test('Cross-Origin-Resource-Policy is same-origin', async () => {
+    const res = await request('GET', '/health');
+    assert.strictEqual(res.headers['cross-origin-resource-policy'], 'same-origin');
+  });
+
+  await test('HSTS includes preload directive', async () => {
+    const res = await request('GET', '/health');
+    const hsts = res.headers['strict-transport-security'];
+    assert.ok(hsts.includes('preload'), 'HSTS should include preload');
+  });
+
+  await test('X-Permitted-Cross-Domain-Policies is none', async () => {
+    const res = await request('GET', '/health');
+    assert.strictEqual(res.headers['x-permitted-cross-domain-policies'], 'none');
+  });
+
+  await test('X-Download-Options is noopen', async () => {
+    const res = await request('GET', '/health');
+    assert.strictEqual(res.headers['x-download-options'], 'noopen');
+  });
+
   server.close();
 
   console.log(`\n${'═'.repeat(50)}`);

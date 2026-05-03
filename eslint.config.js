@@ -1,15 +1,16 @@
 /**
  * ESLint Flat Config for VoterPath
- * Zero-warning policy enforced in CI.
+ * Zero-warning policy enforced in CI via `--max-warnings=0`.
+ *
  * @see https://eslint.org/docs/latest/use/configure/configuration-files-new
  */
-export default [
+module.exports = [
   {
     files: ['**/*.js'],
     ignores: ['node_modules/**', 'agent-browser-repo/**', 'gstack-repo/**', 'karpathy-skills/**'],
     languageOptions: {
       ecmaVersion: 2022,
-      sourceType: 'module',
+      sourceType: 'commonjs',
       globals: {
         console: 'readonly',
         document: 'readonly',
@@ -26,9 +27,16 @@ export default [
         setTimeout: 'readonly',
         setInterval: 'readonly',
         clearTimeout: 'readonly',
+        clearInterval: 'readonly',
         Date: 'readonly',
         Map: 'readonly',
         HTMLElement: 'readonly',
+        URL: 'readonly',
+        Promise: 'readonly',
+        JSON: 'readonly',
+        Boolean: 'readonly',
+        Array: 'readonly',
+        exports: 'readonly',
       },
     },
     rules: {

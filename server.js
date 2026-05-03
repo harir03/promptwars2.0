@@ -1,21 +1,18 @@
 /**
- * VoterPath — Express Backend Server
- *
- * Proxies Gemini API calls so the API key never touches the client.
- * Implements security hardening (CSP, rate limiting, input validation).
- * Supports deployment on: Google Cloud Run, Render, and Vercel.
- *
- * Google Cloud integrations:
- * - Google Gemini API (AI chat)
- * - Google Cloud Logging (structured JSON logs)
- * - Google Cloud Error Reporting (automatic error capture)
- * - Google Cloud Secret Manager (API key management)
- * - Google Analytics 4 (client-side, via ga.js)
- *
+ * @file VoterPath — Express Backend Server
+ * @description AI-powered, non-partisan civic education platform using Google Gemini.
+ *   Proxies chat requests through a server-side API to protect the API key,
+ *   enforces OWASP-aligned security headers, rate limiting, input validation,
+ *   and structured logging for Google Cloud Logging / Error Reporting.
+ *   Designed for deployment on Google Cloud Run with Secret Manager integration.
+ * @version 1.0.0
+ * @author VoterPath Team
+ * @license MIT
  * @module server
  * @requires express
  * @requires @google/generative-ai
  * @requires dotenv
+ * @see https://cloud.google.com/run/docs
  */
 
 'use strict';
@@ -26,15 +23,23 @@ require('dotenv').config();
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// ── Google Cloud Structured Logging ──────────────────────────────────────────
-// Cloud Run automatically ingests JSON-formatted stdout as structured logs
-// into Google Cloud Logging. See: https://cloud.google.com/run/docs/logging
+// ── Google Cloud Environment Detection ──────────────────────────────────────
 
 /** @type {string} Google Cloud project ID (auto-detected on Cloud Run) */
 const GCP_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || '';
 
+/** @type {string} Cloud Run service name (auto-set by the platform) */
+const K_SERVICE = process.env.K_SERVICE || '';
+
+/** @type {string} Cloud Run revision name (auto-set by the platform) */
+const K_REVISION = process.env.K_REVISION || '';
+
 /** @type {boolean} Whether we are running in a Google Cloud environment */
-const IS_CLOUD = Boolean(GCP_PROJECT || process.env.K_SERVICE);
+const IS_CLOUD = Boolean(GCP_PROJECT || K_SERVICE);
+
+// ── Google Cloud Structured Logging ──────────────────────────────────────────
+// Cloud Run automatically ingests JSON-formatted stdout as structured logs
+// into Google Cloud Logging. See: https://cloud.google.com/run/docs/logging
 
 /**
  * Emits a structured JSON log compatible with Google Cloud Logging.
@@ -49,20 +54,15 @@ const IS_CLOUD = Boolean(GCP_PROJECT || process.env.K_SERVICE);
  */
 function cloudLog(severity, message, payload = {}) {
   if (IS_CLOUD) {
-    // Google Cloud Logging structured format
     const entry = {
       severity,
       message,
       timestamp: new Date().toISOString(),
-      'logging.googleapis.com/labels': {
-        service: 'voterpath',
-        version: '1.0.0',
-      },
+      'logging.googleapis.com/labels': { service: 'voterpath', version: '1.0.0' },
       ...payload,
     };
     console.log(JSON.stringify(entry));
   } else {
-    // Local development — human-readable
     const prefix = `[VoterPath:${severity}]`;
     if (severity === 'ERROR') {
       console.error(prefix, message, payload);
@@ -72,48 +72,40 @@ function cloudLog(severity, message, payload = {}) {
   }
 }
 
+// ── Google Cloud Error Reporting ─────────────────────────────────────────────
+
 /**
  * Reports an error to Google Cloud Error Reporting.
- * Cloud Run automatically captures errors in the correct JSON format.
+ * Cloud Run automatically captures errors emitted in the structured JSON format
+ * with the correct `@type` annotation.
  *
  * @param {Error} err - The error object
- * @param {string} context - Where the error occurred
+ * @param {string} context - Function or route where the error occurred
  * @returns {void}
  * @see https://cloud.google.com/error-reporting/docs/formatting-error-messages
  */
 function reportError(err, context) {
   if (IS_CLOUD) {
-    // Google Cloud Error Reporting structured format
-    const errorEntry = {
+    console.error(JSON.stringify({
       severity: 'ERROR',
       message: err.stack || err.message,
       '@type': 'type.googleapis.com/google.devtools.clouderrorreporting.v1beta1.ReportedErrorEvent',
-      context: {
-        reportLocation: {
-          functionName: context,
-        },
-        httpRequest: {},
-      },
-      serviceContext: {
-        service: 'voterpath',
-        version: '1.0.0',
-      },
-    };
-    console.error(JSON.stringify(errorEntry));
+      context: { reportLocation: { functionName: context }, httpRequest: {} },
+      serviceContext: { service: 'voterpath', version: '1.0.0' },
+    }));
   } else {
     console.error(`[VoterPath:ERROR] ${context}:`, err.message);
   }
 }
 
-// ── Google Cloud Secret Manager Integration ──────────────────────────────────
+// ── Google Cloud Secret Manager Integration ─────────────────────────────────
 // On Cloud Run, secrets are injected as environment variables via --set-secrets.
-// This function validates and retrieves the API key from the environment,
-// supporting both direct env vars and Secret Manager-mounted secrets.
 // See: https://cloud.google.com/run/docs/configuring/secrets
 
 /**
- * Retrieves the Gemini API key from environment (supports Secret Manager).
+ * Retrieves the Gemini API key from the environment.
  * On Cloud Run, the key is mounted via `--set-secrets GEMINI_API_KEY=secret:version`.
+ * Locally, it is loaded from the `.env` file via dotenv.
  *
  * @returns {string|null} The API key or null if not configured
  */
@@ -131,7 +123,7 @@ function getGeminiApiKey() {
 /** @type {number} Server port — Cloud Run requires 8080 */
 const PORT = process.env.PORT || 8080;
 
-/** @type {number} Maximum allowed message length in characters */
+/** @type {number} Maximum allowed length for a single chat message */
 const MAX_MESSAGE_LENGTH = 1000;
 
 /** @type {number} Maximum conversation history turns sent to Gemini */
@@ -146,13 +138,12 @@ const RATE_LIMIT_MAX_REQUESTS = 50;
 /** @type {string} Gemini model identifier */
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
-/** @type {number} Gemini generation temperature (low for factual accuracy) */
+/** @type {number} Gemini generation temperature (low for factual answers) */
 const GEMINI_TEMPERATURE = 0.3;
 
-/** @type {number} Gemini maximum output token count */
+/** @type {number} Maximum output tokens per Gemini response */
 const GEMINI_MAX_TOKENS = 512;
 
-/** @type {string} Non-partisan system instruction for the AI assistant */
 const SYSTEM_INSTRUCTION = `You are VoterPath AI, a helpful, accurate, and strictly \
 non-partisan civic education assistant.
 
@@ -177,32 +168,22 @@ STRICT RULES — never violate these:
 
 TONE: Warm, encouraging, trustworthy, clear — like a helpful librarian, not a politician.`;
 
-// ── App Initialization ───────────────────────────────────────────────────────
-
 const app = express();
-
-// Security: remove X-Powered-By to prevent server fingerprinting (OWASP A09)
 app.disable('x-powered-by');
-
-// Trust first proxy for accurate IP detection behind Cloud Run / load balancers
 app.set('trust proxy', 1);
 
-// ── In-Memory Rate Limiter ───────────────────────────────────────────────────
+// ── Rate Limiter ─────────────────────────────────────────────────────────────
 
-/**
- * Simple in-memory rate limiter keyed by IP address.
- * Resets after RATE_LIMIT_WINDOW_MS. Suitable for single-instance deployments.
- * @type {Map<string, { count: number, resetTime: number }>}
- */
+/** @type {Map<string, {count: number, resetTime: number}>} In-memory store keyed by IP */
 const rateLimitStore = new Map();
 
 /**
- * Rate-limiting middleware — restricts requests per IP within a sliding window.
- * Returns 429 Too Many Requests if the limit is exceeded.
+ * Rate-limits incoming requests using an in-memory sliding window.
+ * Keyed by client IP address. Prevents API abuse on `/api/chat`.
  *
  * @param {import('express').Request} req - Express request object
  * @param {import('express').Response} res - Express response object
- * @param {import('express').NextFunction} next - Express next function
+ * @param {import('express').NextFunction} next - Express next middleware
  * @returns {void}
  */
 function rateLimiter(req, res, next) {
@@ -227,26 +208,25 @@ function rateLimiter(req, res, next) {
   return next();
 }
 
-// Periodic cleanup of expired rate-limit entries to prevent memory leaks (DoS)
+// Periodic cleanup prevents memory leaks from expired entries
 const _rateLimitCleanup = setInterval(() => {
   const now = Date.now();
   for (const [ip, record] of rateLimitStore) {
-    if (now > record.resetTime) {
-      rateLimitStore.delete(ip);
-    }
+    if (now > record.resetTime) rateLimitStore.delete(ip);
   }
 }, RATE_LIMIT_WINDOW_MS);
-_rateLimitCleanup.unref(); // Allow clean process shutdown
+_rateLimitCleanup.unref();
 
 // ── CORS Middleware ──────────────────────────────────────────────────────────
 
 /**
- * Configures Cross-Origin Resource Sharing for split frontend deployments.
- * Allows requests only from explicitly whitelisted origins.
+ * Whitelist-based CORS middleware for split frontend/backend deployments.
+ * Only sets `Access-Control-Allow-Origin` for explicitly allowed origins.
+ * Includes `Vary: Origin` to prevent cache poisoning.
  *
  * @param {import('express').Request} req - Express request object
  * @param {import('express').Response} res - Express response object
- * @param {import('express').NextFunction} next - Express next function
+ * @param {import('express').NextFunction} next - Express next middleware
  * @returns {void}
  */
 function corsMiddleware(req, res, next) {
@@ -264,32 +244,29 @@ function corsMiddleware(req, res, next) {
     res.setHeader('Vary', 'Origin');
   }
 
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
-  }
-
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
   return next();
 }
 
-// ── Security Headers Middleware ──────────────────────────────────────────────
+// ── Security Headers ─────────────────────────────────────────────────────────
 
 /**
- * Sets comprehensive HTTP security headers on every response.
- * Implements Content-Security-Policy, X-Frame-Options, and other hardening headers.
+ * Sets OWASP-aligned defense-in-depth security headers on every response.
+ * Includes CSP, HSTS, X-Frame-Options, Permissions-Policy, and cross-origin
+ * isolation headers (COOP/CORP).
  *
- * @param {import('express').Request} _req - Express request object (unused)
+ * @param {import('express').Request} _req - Express request (unused)
  * @param {import('express').Response} res - Express response object
- * @param {import('express').NextFunction} next - Express next function
+ * @param {import('express').NextFunction} next - Express next middleware
  * @returns {void}
  */
 function securityHeaders(_req, res, next) {
-  // Strict CSP — no 'unsafe-inline' for script-src (GA moved to external ga.js)
   res.setHeader(
     'Content-Security-Policy',
     "default-src 'self'; " +
     "script-src 'self' https://www.googletagmanager.com " +
     'https://www.google-analytics.com; ' +
-    "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; " +
+    "style-src 'self' https://fonts.googleapis.com; " +
     "font-src 'self' https://fonts.gstatic.com; " +
     "connect-src 'self' https://www.google-analytics.com " +
     'https://*.onrender.com https://*.run.app; ' +
@@ -302,17 +279,9 @@ function securityHeaders(_req, res, next) {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader(
-    'Permissions-Policy',
-    'camera=(), microphone=(), geolocation=(), payment=(), usb=()'
-  );
-  // Modern standard: disable XSS auditor, rely on CSP (OWASP recommendation)
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
   res.setHeader('X-XSS-Protection', '0');
-  res.setHeader(
-    'Strict-Transport-Security',
-    'max-age=31536000; includeSubDomains; preload'
-  );
-  // Cross-Origin isolation headers
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
   res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
@@ -320,80 +289,68 @@ function securityHeaders(_req, res, next) {
   next();
 }
 
-// ── Apply Middleware ─────────────────────────────────────────────────────────
-
 app.use(corsMiddleware);
 app.use(securityHeaders);
 app.use(express.json({ limit: '10kb' }));
+
+// Logs every HTTP request in Cloud Logging's httpRequest format
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const severity = res.statusCode >= 400 ? 'WARNING' : 'INFO';
+    const summary = `${req.method} ${req.path} ${res.statusCode}`;
+    cloudLog(severity, summary, {
+      httpRequest: {
+        requestMethod: req.method,
+        requestUrl: req.originalUrl,
+        status: res.statusCode,
+        latency: `${(Date.now() - start) / 1000}s`,
+        remoteIp: req.ip,
+        userAgent: req.get('user-agent') || '',
+      },
+    });
+  });
+  next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ── Health Check Endpoint ────────────────────────────────────────────────────
+// ── Health Check (Cloud Run) ─────────────────────────────────────────────────
 
 /**
- * GET /health — Returns server health status for uptime monitors and
- * container orchestrators (Cloud Run, Docker, Kubernetes).
- *
- * @param {import('express').Request} _req - Express request object (unused)
- * @param {import('express').Response} res - Express response object
- * @returns {void}
+ * Health check endpoint for Cloud Run startup/liveness probes.
+ * Returns service metadata including Cloud Run environment variables.
  */
 app.get('/health', (_req, res) => {
   res.status(200).json({
     status: 'ok',
-    service: 'voterpath',
+    service: K_SERVICE || 'voterpath',
     version: '1.0.0',
+    revision: K_REVISION || 'local',
     timestamp: new Date().toISOString(),
     cloud: IS_CLOUD ? 'google-cloud-run' : 'local',
     project: GCP_PROJECT || undefined,
   });
 });
 
-// ── Gemini AI Chat Proxy ─────────────────────────────────────────────────────
-
-/**
- * POST /api/chat — Proxies a user message to the Google Gemini API.
- * Validates input, enforces rate limits, maps chat history roles,
- * and returns the AI-generated response.
- *
- * @param {import('express').Request} req - Express request with body.message
- * @param {import('express').Response} res - Express response with { reply }
- * @returns {Promise<void>}
- *
- * @example
- * // Request
- * POST /api/chat
- * { "message": "How do I register to vote?", "history": [] }
- *
- * // Response
- * { "reply": "You can register at vote.gov..." }
- */
 app.post('/api/chat', rateLimiter, async (req, res) => {
-  // Prevent caching of API responses containing user data
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.setHeader('Pragma', 'no-cache');
 
   const { message, history = [] } = req.body;
 
-  // ── History array validation ──────────────────────────────────────────────
   if (!Array.isArray(history)) {
-    return res.status(400).json({
-      error: 'Invalid request: history must be an array.',
-    });
+    return res.status(400).json({ error: 'Invalid request: history must be an array.' });
   }
 
-  // ── Input validation ──────────────────────────────────────────────────────
   if (!message || typeof message !== 'string') {
-    return res.status(400).json({
-      error: 'Invalid request: message is required and must be a string.',
-    });
+    return res.status(400).json({ error: 'Invalid request: message is required and must be a string.' });
   }
 
   const trimmedMessage = message.trim();
 
   if (trimmedMessage.length === 0) {
-    return res.status(400).json({
-      error: 'Invalid request: message cannot be empty.',
-    });
+    return res.status(400).json({ error: 'Invalid request: message cannot be empty.' });
   }
 
   if (trimmedMessage.length > MAX_MESSAGE_LENGTH) {
@@ -402,16 +359,11 @@ app.post('/api/chat', rateLimiter, async (req, res) => {
     });
   }
 
-  // ── API key check (supports Secret Manager) ──────────────────────────────
   const apiKey = getGeminiApiKey();
-
   if (!apiKey) {
-    return res.status(503).json({
-      error: 'AI service is not available. Please try again later.',
-    });
+    return res.status(503).json({ error: 'AI service is not available. Please try again later.' });
   }
 
-  // ── Gemini API call ───────────────────────────────────────────────────────
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
@@ -419,7 +371,7 @@ app.post('/api/chat', rateLimiter, async (req, res) => {
       systemInstruction: SYSTEM_INSTRUCTION,
     });
 
-    // Map internal 'ai' role to Gemini's expected 'model' role
+    // Map frontend 'ai' role to Gemini's expected 'model' role
     const geminiHistory = history
       .slice(-MAX_HISTORY_TURNS)
       .filter((turn) => turn && turn.text && turn.role)
@@ -441,33 +393,19 @@ app.post('/api/chat', rateLimiter, async (req, res) => {
 
     return res.status(200).json({ reply });
   } catch (err) {
-    // Report to Google Cloud Error Reporting
     reportError(err, 'POST /api/chat');
     cloudLog('WARNING', 'Gemini API call failed', {
       error: err.message,
       httpRequest: { method: 'POST', url: '/api/chat' },
     });
-    return res.status(502).json({
-      error: 'Failed to reach AI service. Please try again.',
-    });
+    return res.status(502).json({ error: 'Failed to reach AI service. Please try again.' });
   }
 });
 
-// ── SPA Fallback ─────────────────────────────────────────────────────────────
-
-/**
- * GET * — Serves the SPA index.html for any unmatched route.
- * This enables client-side routing and deep linking.
- *
- * @param {import('express').Request} _req - Express request object (unused)
- * @param {import('express').Response} res - Express response object
- * @returns {void}
- */
+// SPA fallback — serves index.html for client-side routing
 app.get('*', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
-
-// ── Server Bootstrap ─────────────────────────────────────────────────────────
 
 if (require.main === module) {
   app.listen(PORT, () => {

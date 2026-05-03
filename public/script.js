@@ -1,30 +1,7 @@
-/**
- * VoterPath — Main Frontend Script
- *
- * Handles all client-side interactivity:
- * - Scroll-driven reveal animations with IntersectionObserver
- * - Reading progress bar with ARIA updates
- * - Accessible jargon tooltips (keyboard + click)
- * - Dark/light theme toggle with localStorage persistence
- * - State voter registration deadline selector
- * - Gemini AI chat panel with session history
- * - Google Analytics 4 event tracking
- *
- * @module script
- * @requires DOM — runs only in browser context
- */
-
 'use strict';
 
-// ── Constants ────────────────────────────────────────────────────────────────
-
-/** @type {Readonly<string[]>} Ordered election phase IDs for navigation */
 const PHASES = ['registration', 'research', 'voting', 'results'];
 
-/**
- * Voter registration deadline data for all 50 US states.
- * @type {Object.<string, {deadline: string, sameDay: boolean}>}
- */
 const STATE_DEADLINES = {
   'Alabama': { deadline: '15 days before election', sameDay: false },
   'Alaska': { deadline: '30 days before election', sameDay: false },
@@ -78,26 +55,11 @@ const STATE_DEADLINES = {
   'Wyoming': { deadline: '14 days before election', sameDay: false },
 };
 
-// ── Pure Utility Functions (also exported for testing) ───────────────────────
-
-/**
- * Returns the registration deadline data for a given US state.
- * @param {string} state - Full state name (e.g. 'California')
- * @returns {{ deadline: string, sameDay: boolean } | null}
- */
 function getStateData(state) {
   if (!state || typeof state !== 'string') return null;
   return STATE_DEADLINES[state] || null;
 }
 
-/**
- * Sanitizes user input by stripping HTML tags and truncating to maxLength.
- * Prevents XSS by removing all HTML tags and javascript: protocol strings.
- *
- * @param {string} input - Raw user input
- * @param {number} [maxLength=500] - Maximum character length
- * @returns {string} Sanitized string, empty string if input is invalid
- */
 function sanitizeInput(input, maxLength = 500) {
   if (!input || typeof input !== 'string') return '';
   return input
@@ -108,32 +70,16 @@ function sanitizeInput(input, maxLength = 500) {
     .trim();
 }
 
-/**
- * Returns the 0-based index of a phase name in the PHASES array.
- * @param {string} phase - Phase name (case-insensitive)
- * @returns {number} Index, or -1 if not found
- */
 function getPhaseIndex(phase) {
   return PHASES.indexOf(phase.toLowerCase());
 }
 
-/**
- * Returns the name of the next phase after currentPhase, or null if last.
- * @param {string} currentPhase - Current phase name
- * @returns {string | null} Next phase name or null
- */
 function getNextPhase(currentPhase) {
   const idx = getPhaseIndex(currentPhase);
   if (idx === -1 || idx === PHASES.length - 1) return null;
   return PHASES[idx + 1];
 }
 
-// ── Scroll Progress Bar ──────────────────────────────────────────────────────
-
-/**
- * Initializes the fixed reading-progress bar at the top of the page.
- * @returns {void}
- */
 function initProgressBar() {
   const bar = document.getElementById('progress-bar');
   if (!bar) return;
@@ -147,13 +93,6 @@ function initProgressBar() {
   }, { passive: true });
 }
 
-// ── Scroll Reveal (IntersectionObserver) ─────────────────────────────────────
-
-/**
- * Observes `.reveal` elements and adds `.visible` when they enter the viewport.
- * Respects `prefers-reduced-motion` by skipping the observer and showing all immediately.
- * @returns {void}
- */
 function initScrollReveal() {
   const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const elements = document.querySelectorAll('.reveal');
@@ -170,7 +109,6 @@ function initScrollReveal() {
           entry.target.classList.add('visible');
           observer.unobserve(entry.target);
 
-          // Track phase views in GA4
           const id = entry.target.id;
           if (id && id.startsWith('phase-') && typeof gtag !== 'undefined') {
             gtag('event', 'phase_viewed', { event_label: id });
@@ -184,12 +122,6 @@ function initScrollReveal() {
   elements.forEach((el) => observer.observe(el));
 }
 
-// ── Tooltip Accessibility ────────────────────────────────────────────────────
-
-/**
- * Wires up all `.jargon` buttons to toggle `aria-expanded` for keyboard-accessible tooltips.
- * @returns {void}
- */
 function initTooltips() {
   const jargonBtns = document.querySelectorAll('.jargon');
 
@@ -197,7 +129,6 @@ function initTooltips() {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const expanded = btn.getAttribute('aria-expanded') === 'true';
-      // Close all others first
       jargonBtns.forEach((b) => b.setAttribute('aria-expanded', 'false'));
       btn.setAttribute('aria-expanded', String(!expanded));
     });
@@ -212,12 +143,6 @@ function initTooltips() {
   });
 }
 
-// ── Dark / Light Theme Toggle ────────────────────────────────────────────────
-
-/**
- * Initializes the dark/light mode toggle, persisting preference to localStorage.
- * @returns {void}
- */
 function initThemeToggle() {
   const btn = document.getElementById('theme-toggle');
   const icon = document.getElementById('theme-icon');
@@ -238,18 +163,11 @@ function initThemeToggle() {
   });
 }
 
-// ── State Deadline Selector ──────────────────────────────────────────────────
-
-/**
- * Populates the state <select> and wires up the change event to display deadline info.
- * @returns {void}
- */
 function initStateSelector() {
   const select = document.getElementById('state-select');
   const infoBox = document.getElementById('state-info');
   if (!select || !infoBox) return;
 
-  // Populate options
   Object.keys(STATE_DEADLINES).sort().forEach((state) => {
     const option = document.createElement('option');
     option.value = state;
@@ -269,24 +187,14 @@ function initStateSelector() {
     const sameDayNote = data.sameDay ? ' ✓ Same-day registration available!' : '';
     infoBox.textContent = `📋 ${state}: ${data.deadline}.${sameDayNote}`;
 
-    // Track in GA4
     if (typeof gtag !== 'undefined') {
       gtag('event', 'state_selected', { event_label: state });
     }
   });
 }
 
-// ── Gemini AI Chat ───────────────────────────────────────────────────────────
+let chatHistory = [];
 
-/** @type {Array<{role: string, text: string}>} In-memory chat conversation turns */
-let chatHistory = []; // mutated by push/restore
-
-/**
- * Appends a message bubble to the chat log.
- * @param {string} text - Message text
- * @param {'user'|'ai'|'loading'} role - Message sender role
- * @returns {HTMLElement} The created message element
- */
 function appendMessage(text, role) {
   const messages = document.getElementById('chat-messages');
   if (!messages) return null;
@@ -301,11 +209,6 @@ function appendMessage(text, role) {
   return div;
 }
 
-/**
- * Sends a user message to the /api/chat endpoint and renders the response.
- * @param {string} text - Sanitized user message
- * @returns {Promise<void>}
- */
 async function sendMessage(text) {
   const cleaned = sanitizeInput(text);
   if (!cleaned) return;
@@ -336,12 +239,10 @@ async function sendMessage(text) {
     appendMessage(reply, 'ai');
     chatHistory.push({ role: 'model', text: reply });
 
-    // Persist to sessionStorage
     try {
       sessionStorage.setItem('voterpath_chat_history', JSON.stringify(chatHistory));
-    } catch (_e) { /* storage full — silent fail */ }
+    } catch (_e) { /* storage full */ }
 
-    // Track in GA4
     if (typeof gtag !== 'undefined') {
       gtag('event', 'chat_message_sent', { message_length: cleaned.length });
     }
@@ -355,10 +256,6 @@ async function sendMessage(text) {
   }
 }
 
-/**
- * Initializes the full chat interface: FAB, panel open/close, send button, Enter key.
- * @returns {void}
- */
 function initChat() {
   const fab = document.getElementById('chat-fab');
   const panel = document.getElementById('chat-panel');
@@ -370,7 +267,6 @@ function initChat() {
 
   if (!fab || !panel) return;
 
-  /** @returns {void} */
   function openChat() {
     panel.classList.add('open');
     panel.setAttribute('aria-hidden', 'false');
@@ -378,14 +274,12 @@ function initChat() {
     input && input.focus();
     if (typeof gtag !== 'undefined') gtag('event', 'chat_opened');
 
-    // Restore session history
     try {
       const saved = sessionStorage.getItem('voterpath_chat_history');
       if (saved) chatHistory = JSON.parse(saved);
-    } catch (_e) { /* corrupt storage — silent fail */ }
+    } catch (_e) { /* corrupt storage */ }
   }
 
-  /** @returns {void} */
   function closeChat() {
     panel.classList.remove('open');
     panel.setAttribute('aria-hidden', 'true');
@@ -411,18 +305,11 @@ function initChat() {
     }
   });
 
-  // Close on Escape key
   panel.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeChat();
   });
 }
 
-// ── Smooth Scroll — Hero CTA ─────────────────────────────────────────────────
-
-/**
- * Wires the "Begin the Journey" hero button to scroll to Phase 1.
- * @returns {void}
- */
 function initHeroScroll() {
   const btn = document.getElementById('start-journey');
   if (!btn) return;
@@ -431,8 +318,6 @@ function initHeroScroll() {
     if (target) target.scrollIntoView({ behavior: 'smooth' });
   });
 }
-
-// ── Initialise All ───────────────────────────────────────────────────────────
 
 if (typeof document !== 'undefined') {
   document.addEventListener('DOMContentLoaded', () => {
@@ -446,7 +331,6 @@ if (typeof document !== 'undefined') {
   });
 }
 
-// ── Expose utilities for unit tests (Node.js context) ───────────────────────
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { getStateData, sanitizeInput, getPhaseIndex, getNextPhase };
 }

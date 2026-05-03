@@ -1,34 +1,16 @@
-/**
- * VoterPath — Comprehensive Unit Test Suite
- *
- * Tests pure utility functions exported from public/script.js.
- * Run with: npm test
- *
- * Test categories:
- * 1. State Deadline Lookup (boundary + edge cases)
- * 2. Input Sanitization (XSS, injection, truncation)
- * 3. Phase Navigation (ordering, boundaries)
- * 4. Server Module Validation (exports, configuration)
- *
- * @module unit.test
- */
-
 'use strict';
 
 const { getStateData, sanitizeInput, getPhaseIndex, getNextPhase } = require('../public/script.js');
 const assert = require('assert');
+const fs = require('fs');
+const { join } = require('path');
+
+const ROOT = join(__dirname, '..');
 
 let passed = 0;
 let failed = 0;
 let total = 0;
 
-/**
- * Runs a named test case, tracks pass/fail count, and logs the result.
- *
- * @param {string} name - Human-readable test name
- * @param {Function} fn - Test function that throws on failure
- * @returns {void}
- */
 function test(name, fn) {
   total++;
   try {
@@ -41,20 +23,16 @@ function test(name, fn) {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 1. STATE DEADLINE LOOKUP
-// ══════════════════════════════════════════════════════════════════════════════
 console.log('\n📋 State Deadline Lookup');
 
 test('Returns data for valid state (Texas)', () => {
   const r = getStateData('Texas');
-  assert.ok(r !== null, 'Should return data');
-  assert.ok(r.deadline.includes('30 days'), 'Texas deadline should be 30 days');
+  assert.ok(r !== null);
+  assert.ok(r.deadline.includes('30 days'));
 });
 
 test('Returns data for valid state (California)', () => {
-  const r = getStateData('California');
-  assert.strictEqual(r.sameDay, true, 'California should have same-day registration');
+  assert.strictEqual(getStateData('California').sameDay, true);
 });
 
 test('Returns null for unknown state', () => {
@@ -78,18 +56,15 @@ test('Returns null for numeric input', () => {
 });
 
 test('North Dakota has no registration required', () => {
-  const r = getStateData('North Dakota');
-  assert.ok(r.deadline.includes('No registration'), 'North Dakota requires no registration');
+  assert.ok(getStateData('North Dakota').deadline.includes('No registration'));
 });
 
 test('Colorado has same-day registration', () => {
-  const r = getStateData('Colorado');
-  assert.strictEqual(r.sameDay, true, 'Colorado supports same-day registration');
+  assert.strictEqual(getStateData('Colorado').sameDay, true);
 });
 
 test('Florida does NOT have same-day registration', () => {
-  const r = getStateData('Florida');
-  assert.strictEqual(r.sameDay, false, 'Florida does not support same-day registration');
+  assert.strictEqual(getStateData('Florida').sameDay, false);
 });
 
 test('All 50 states are present in the dataset', () => {
@@ -108,56 +83,48 @@ test('All 50 states are present in the dataset', () => {
   states.forEach((state) => {
     const r = getStateData(state);
     assert.ok(r !== null, `Missing data for ${state}`);
-    assert.ok(typeof r.deadline === 'string', `${state} deadline should be a string`);
-    assert.ok(typeof r.sameDay === 'boolean', `${state} sameDay should be a boolean`);
+    assert.ok(typeof r.deadline === 'string');
+    assert.ok(typeof r.sameDay === 'boolean');
   });
 });
 
 test('State lookup is case-sensitive (lowercase returns null)', () => {
-  assert.strictEqual(getStateData('texas'), null, 'Lowercase should not match');
+  assert.strictEqual(getStateData('texas'), null);
 });
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 2. INPUT SANITIZATION
-// ══════════════════════════════════════════════════════════════════════════════
 console.log('\n🔒 Input Sanitization');
 
 test('Strips <script> tags', () => {
   const result = sanitizeInput('<script>alert(1)</script>Hello');
-  assert.ok(!result.includes('<script>'), 'Should strip script tags');
-  assert.ok(result.includes('Hello'), 'Should preserve safe text');
+  assert.ok(!result.includes('<script>'));
+  assert.ok(result.includes('Hello'));
 });
 
 test('Strips all HTML tags', () => {
   const result = sanitizeInput('<b>Bold</b> and <i>italic</i>');
-  assert.ok(!result.includes('<b>'), 'Should strip <b> tags');
-  assert.ok(!result.includes('<i>'), 'Should strip <i> tags');
-  assert.ok(result.includes('Bold'), 'Should preserve inner text');
+  assert.ok(!result.includes('<b>'));
+  assert.ok(!result.includes('<i>'));
+  assert.ok(result.includes('Bold'));
 });
 
 test('Blocks javascript: protocol', () => {
-  const result = sanitizeInput('javascript:alert(1)');
-  assert.ok(!result.includes('javascript:'), 'Should strip javascript: protocol');
+  assert.ok(!sanitizeInput('javascript:alert(1)').includes('javascript:'));
 });
 
 test('Blocks JAVASCRIPT: protocol (case insensitive)', () => {
-  const result = sanitizeInput('JAVASCRIPT:alert(1)');
-  assert.ok(!result.includes('JAVASCRIPT:'), 'Should strip uppercase variant');
+  assert.ok(!sanitizeInput('JAVASCRIPT:alert(1)').includes('JAVASCRIPT:'));
 });
 
 test('Strips inline event handlers (onclick=)', () => {
-  const result = sanitizeInput('onclick=alert(1)');
-  assert.ok(!result.includes('onclick='), 'Should strip event handlers');
+  assert.ok(!sanitizeInput('onclick=alert(1)').includes('onclick='));
 });
 
 test('Truncates to specified maxLength', () => {
-  const input = 'a'.repeat(600);
-  assert.strictEqual(sanitizeInput(input, 500).length, 500);
+  assert.strictEqual(sanitizeInput('a'.repeat(600), 500).length, 500);
 });
 
 test('Truncates to default maxLength of 500', () => {
-  const input = 'b'.repeat(1000);
-  assert.strictEqual(sanitizeInput(input).length, 500);
+  assert.strictEqual(sanitizeInput('b'.repeat(1000)).length, 500);
 });
 
 test('Returns empty string for null', () => {
@@ -184,8 +151,8 @@ test('Trims whitespace', () => {
 
 test('Handles nested tags', () => {
   const result = sanitizeInput('<div><span>text</span></div>');
-  assert.ok(!result.includes('<'), 'Should strip all angle brackets');
-  assert.ok(result.includes('text'), 'Should preserve inner text');
+  assert.ok(!result.includes('<'));
+  assert.ok(result.includes('text'));
 });
 
 test('Preserves normal text without modification', () => {
@@ -193,9 +160,6 @@ test('Preserves normal text without modification', () => {
   assert.strictEqual(sanitizeInput(input), input);
 });
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 3. PHASE NAVIGATION
-// ══════════════════════════════════════════════════════════════════════════════
 console.log('\n🗺️  Phase Navigation');
 
 test('getPhaseIndex — registration is 0', () => {
@@ -246,114 +210,88 @@ test('getNextPhase — null for unknown phase', () => {
   assert.strictEqual(getNextPhase('xyz'), null);
 });
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 4. SERVER MODULE VALIDATION
-// ══════════════════════════════════════════════════════════════════════════════
 console.log('\n🖥️  Server Module Validation');
 
 test('server.js exports an Express app with listen method', () => {
   const app = require('../server.js');
-  assert.ok(typeof app === 'function', 'Should export a function (Express app)');
-  assert.ok(typeof app.listen === 'function', 'App should have listen method');
+  assert.ok(typeof app === 'function');
+  assert.ok(typeof app.listen === 'function');
 });
 
 test('server.js exports an app with use method', () => {
   const app = require('../server.js');
-  assert.ok(typeof app.use === 'function', 'App should have use method');
+  assert.ok(typeof app.use === 'function');
 });
 
 test('package.json has required fields', () => {
   const pkg = require('../package.json');
-  assert.ok(pkg.name === 'voterpath', 'Package name should be voterpath');
-  assert.ok(pkg.main === 'server.js', 'Main entry should be server.js');
-  assert.ok(pkg.engines && pkg.engines.node, 'Should specify node engine');
-  assert.ok(pkg.scripts && pkg.scripts.start, 'Should have start script');
-  assert.ok(pkg.scripts && pkg.scripts.test, 'Should have test script');
+  assert.strictEqual(pkg.name, 'voterpath');
+  assert.strictEqual(pkg.main, 'server.js');
+  assert.ok(pkg.engines && pkg.engines.node);
+  assert.ok(pkg.scripts && pkg.scripts.start);
+  assert.ok(pkg.scripts && pkg.scripts.test);
 });
 
 test('package.json has required dependencies', () => {
   const pkg = require('../package.json');
-  assert.ok(pkg.dependencies['@google/generative-ai'], 'Should depend on Gemini SDK');
-  assert.ok(pkg.dependencies['express'], 'Should depend on Express');
-  assert.ok(pkg.dependencies['dotenv'], 'Should depend on dotenv');
+  assert.ok(pkg.dependencies['@google/generative-ai']);
+  assert.ok(pkg.dependencies['express']);
+  assert.ok(pkg.dependencies['dotenv']);
 });
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 5. SECURITY HARDENING
-// ══════════════════════════════════════════════════════════════════════════════
 console.log('\n🔐 Security Hardening');
 
 test('Server disables X-Powered-By header', () => {
   const app = require('../server.js');
-  assert.strictEqual(
-    app.get('x-powered-by'),
-    false,
-    'x-powered-by should be disabled (false)'
-  );
+  assert.strictEqual(app.get('x-powered-by'), false);
 });
 
 test('Server trusts first proxy for Cloud Run', () => {
   const app = require('../server.js');
-  assert.ok(app.get('trust proxy'), 'trust proxy should be set');
+  assert.ok(app.get('trust proxy'));
 });
 
 test('sanitizeInput blocks data: URI protocol in text', () => {
   const result = sanitizeInput('data:text/html,<script>alert(1)</script>');
-  assert.ok(!result.includes('<script>'), 'Should strip script tags from data URI');
+  assert.ok(!result.includes('<script>'));
 });
 
 test('sanitizeInput blocks onmouseover= event handler', () => {
-  const result = sanitizeInput('onmouseover=alert(1)');
-  assert.ok(!result.includes('onmouseover='), 'Should strip mouse event handlers');
+  assert.ok(!sanitizeInput('onmouseover=alert(1)').includes('onmouseover='));
 });
 
 test('sanitizeInput blocks onfocus= event handler', () => {
-  const result = sanitizeInput('onfocus=steal()');
-  assert.ok(!result.includes('onfocus='), 'Should strip focus event handlers');
+  assert.ok(!sanitizeInput('onfocus=steal()').includes('onfocus='));
 });
 
 test('sanitizeInput handles extremely long input efficiently', () => {
-  const longInput = 'x'.repeat(100000);
   const start = Date.now();
-  const result = sanitizeInput(longInput, 500);
-  const elapsed = Date.now() - start;
-  assert.ok(elapsed < 100, 'Should process long input in under 100ms');
-  assert.strictEqual(result.length, 500, 'Should truncate to maxLength');
+  const result = sanitizeInput('x'.repeat(100000), 500);
+  assert.ok(Date.now() - start < 100);
+  assert.strictEqual(result.length, 500);
 });
 
 test('sanitizeInput blocks mixed-case JaVaScRiPt: protocol', () => {
-  const result = sanitizeInput('JaVaScRiPt:void(0)');
-  assert.ok(!result.toLowerCase().includes('javascript:'), 'Should strip mixed-case');
+  assert.ok(!sanitizeInput('JaVaScRiPt:void(0)').toLowerCase().includes('javascript:'));
 });
 
 test('sanitizeInput blocks img onerror injection', () => {
   const result = sanitizeInput('<img src=x onerror=alert(1)>');
-  assert.ok(!result.includes('<img'), 'Should strip img tag');
-  assert.ok(!result.includes('onerror='), 'Should strip onerror handler');
+  assert.ok(!result.includes('<img'));
+  assert.ok(!result.includes('onerror='));
 });
 
 test('.gitignore excludes .env files', () => {
-  const fs = require('fs');
-  const gitignore = fs.readFileSync(
-    require('path').join(__dirname, '..', '.gitignore'),
-    'utf8'
-  );
-  assert.ok(gitignore.includes('.env'), '.gitignore must exclude .env');
-  assert.ok(gitignore.includes('.env.local'), '.gitignore must exclude .env.local');
-  assert.ok(
-    gitignore.includes('.env.production'),
-    '.gitignore must exclude .env.production'
-  );
+  const gitignore = fs.readFileSync(join(ROOT, '.gitignore'), 'utf8');
+  assert.ok(gitignore.includes('.env'));
+  assert.ok(gitignore.includes('.env.local'));
+  assert.ok(gitignore.includes('.env.production'));
 });
 
 test('.dockerignore excludes sensitive files', () => {
-  const fs = require('fs');
-  const dockerignore = fs.readFileSync(
-    require('path').join(__dirname, '..', '.dockerignore'),
-    'utf8'
-  );
-  assert.ok(dockerignore.includes('.env'), '.dockerignore must exclude .env');
-  assert.ok(dockerignore.includes('.git'), '.dockerignore must exclude .git');
+  const dockerignore = fs.readFileSync(join(ROOT, '.dockerignore'), 'utf8');
+  assert.ok(dockerignore.includes('.env'));
+  assert.ok(dockerignore.includes('.git'));
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -361,130 +299,73 @@ test('.dockerignore excludes sensitive files', () => {
 // ══════════════════════════════════════════════════════════════════════════════
 console.log('\n☁️  Google Cloud Integration');
 
-test('cloudbuild.yaml exists for CI/CD pipeline', () => {
-  const fs = require('fs');
-  const buildFile = require('path').join(__dirname, '..', 'cloudbuild.yaml');
-  assert.ok(fs.existsSync(buildFile), 'cloudbuild.yaml must exist');
-});
+const cloudbuild = fs.readFileSync(join(ROOT, 'cloudbuild.yaml'), 'utf8');
+const serverSrc = fs.readFileSync(join(ROOT, 'server.js'), 'utf8');
+const htmlSrc = fs.readFileSync(join(ROOT, 'public', 'index.html'), 'utf8');
+const gaSrc = fs.readFileSync(join(ROOT, 'public', 'ga.js'), 'utf8');
 
-test('cloudbuild.yaml references Cloud Run deploy', () => {
-  const fs = require('fs');
-  const content = fs.readFileSync(
-    require('path').join(__dirname, '..', 'cloudbuild.yaml'),
-    'utf8'
-  );
-  assert.ok(content.includes('run'), 'Should reference Cloud Run');
-  assert.ok(content.includes('deploy'), 'Should include deploy step');
-  assert.ok(content.includes('gcr.io'), 'Should push to Google Container Registry');
+test('cloudbuild.yaml exists and references Cloud Run deploy', () => {
+  assert.ok(cloudbuild.includes('run'));
+  assert.ok(cloudbuild.includes('deploy'));
+  assert.ok(cloudbuild.includes('gcr.io'));
 });
 
 test('cloudbuild.yaml uses Secret Manager for API key', () => {
-  const fs = require('fs');
-  const content = fs.readFileSync(
-    require('path').join(__dirname, '..', 'cloudbuild.yaml'),
-    'utf8'
-  );
-  assert.ok(content.includes('set-secrets'), 'Should use --set-secrets for Secret Manager');
-  assert.ok(content.includes('gemini-api-key'), 'Should reference gemini-api-key secret');
+  assert.ok(cloudbuild.includes('set-secrets'));
+  assert.ok(cloudbuild.includes('gemini-api-key'));
 });
 
 test('cloudbuild.yaml runs lint and test before deploy', () => {
-  const fs = require('fs');
-  const content = fs.readFileSync(
-    require('path').join(__dirname, '..', 'cloudbuild.yaml'),
-    'utf8'
-  );
-  assert.ok(content.includes('lint'), 'Should run lint step');
-  assert.ok(content.includes('test'), 'Should run test step');
+  assert.ok(cloudbuild.includes('lint'));
+  assert.ok(cloudbuild.includes('test'));
 });
 
 test('server.js uses Google Cloud structured logging', () => {
-  const fs = require('fs');
-  const content = fs.readFileSync(
-    require('path').join(__dirname, '..', 'server.js'),
-    'utf8'
-  );
-  assert.ok(content.includes('cloudLog'), 'Should use cloudLog function');
-  assert.ok(content.includes('severity'), 'Should include severity field');
-  assert.ok(
-    content.includes('logging.googleapis.com/labels'),
-    'Should use Cloud Logging label format'
-  );
+  assert.ok(serverSrc.includes('cloudLog'));
+  assert.ok(serverSrc.includes('severity'));
+  assert.ok(serverSrc.includes('logging.googleapis.com/labels'));
 });
 
 test('server.js uses Google Cloud Error Reporting format', () => {
-  const fs = require('fs');
-  const content = fs.readFileSync(
-    require('path').join(__dirname, '..', 'server.js'),
-    'utf8'
-  );
-  assert.ok(content.includes('reportError'), 'Should use reportError function');
-  assert.ok(
-    content.includes('clouderrorreporting'),
-    'Should use Error Reporting @type annotation'
-  );
-  assert.ok(
-    content.includes('serviceContext'),
-    'Should include serviceContext for Error Reporting'
-  );
+  assert.ok(serverSrc.includes('reportError'));
+  assert.ok(serverSrc.includes('clouderrorreporting'));
+  assert.ok(serverSrc.includes('serviceContext'));
 });
 
 test('server.js uses Secret Manager for API key retrieval', () => {
-  const fs = require('fs');
-  const content = fs.readFileSync(
-    require('path').join(__dirname, '..', 'server.js'),
-    'utf8'
-  );
-  assert.ok(content.includes('getGeminiApiKey'), 'Should use getGeminiApiKey function');
-  assert.ok(content.includes('Secret Manager'), 'Should reference Secret Manager');
+  assert.ok(serverSrc.includes('getGeminiApiKey'));
+  assert.ok(serverSrc.includes('Secret Manager'));
 });
 
 test('server.js detects Google Cloud environment', () => {
-  const fs = require('fs');
-  const content = fs.readFileSync(
-    require('path').join(__dirname, '..', 'server.js'),
-    'utf8'
-  );
-  assert.ok(
-    content.includes('GOOGLE_CLOUD_PROJECT'),
-    'Should check GOOGLE_CLOUD_PROJECT env var'
-  );
-  assert.ok(content.includes('K_SERVICE'), 'Should check K_SERVICE (Cloud Run auto-set)');
-  assert.ok(content.includes('IS_CLOUD'), 'Should have IS_CLOUD flag');
+  assert.ok(serverSrc.includes('GOOGLE_CLOUD_PROJECT'));
+  assert.ok(serverSrc.includes('K_SERVICE'));
+  assert.ok(serverSrc.includes('IS_CLOUD'));
 });
 
-test('Google Analytics 4 external file exists', () => {
-  const fs = require('fs');
-  const gaFile = require('path').join(__dirname, '..', 'public', 'ga.js');
-  assert.ok(fs.existsSync(gaFile), 'public/ga.js must exist');
-  const content = fs.readFileSync(gaFile, 'utf8');
-  assert.ok(content.includes('gtag'), 'ga.js should define gtag');
-  assert.ok(content.includes('anonymize_ip'), 'ga.js should enable IP anonymization');
+test('Google Analytics 4 file has valid config', () => {
+  assert.ok(gaSrc.includes('gtag'));
+  assert.ok(gaSrc.includes('anonymize_ip'));
+  assert.ok(!gaSrc.includes('G-XXXXXXXXXX'));
+  assert.ok(gaSrc.includes('G-'));
 });
 
 test('Google Fonts loaded in index.html', () => {
-  const fs = require('fs');
-  const html = fs.readFileSync(
-    require('path').join(__dirname, '..', 'public', 'index.html'),
-    'utf8'
-  );
-  assert.ok(
-    html.includes('fonts.googleapis.com'),
-    'Should load Google Fonts from fonts.googleapis.com'
-  );
-  assert.ok(html.includes('Outfit'), 'Should use Outfit font family');
+  assert.ok(htmlSrc.includes('fonts.googleapis.com'));
+  assert.ok(htmlSrc.includes('Outfit'));
 });
 
-test('health endpoint includes cloud detection fields', () => {
-  const fs = require('fs');
-  const content = fs.readFileSync(
-    require('path').join(__dirname, '..', 'server.js'),
-    'utf8'
-  );
-  assert.ok(
-    content.includes("'google-cloud-run'"),
-    'Health endpoint should report cloud platform'
-  );
+test('Health endpoint includes cloud detection fields', () => {
+  assert.ok(serverSrc.includes("'google-cloud-run'"));
+});
+
+test('server.js includes request logging middleware', () => {
+  assert.ok(serverSrc.includes('requestMethod'));
+  assert.ok(serverSrc.includes('latency'));
+});
+
+test('.editorconfig exists for consistent formatting', () => {
+  assert.ok(fs.existsSync(join(ROOT, '.editorconfig')));
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
