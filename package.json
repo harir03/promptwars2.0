@@ -1,21 +1,34 @@
 {
   "name": "voterpath",
   "version": "1.0.0",
-  "description": "VoterPath - Interactive Election Assistant powered by Google Gemini API",
+  "description": "VoterPath — Interactive AI-powered Election Assistant using Google Gemini API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node --experimental-vm-modules tests/unit.test.js",
-    "lint": "eslint *.js src/**/*.js --max-warnings=0"
+    "test": "node tests/unit.test.js && node tests/server.test.js",
+    "test:unit": "node tests/unit.test.js",
+    "test:server": "node tests/server.test.js",
+    "lint": "eslint server.js public/script.js public/ga.js tests/unit.test.js tests/server.test.js --max-warnings=0",
+    "docker:build": "docker build -t voterpath .",
+    "docker:run": "docker run -p 8080:8080 --env-file .env voterpath"
   },
-  "keywords": ["election", "voting", "civic", "gemini", "google"],
+  "keywords": [
+    "election",
+    "voting",
+    "civic",
+    "gemini",
+    "google",
+    "cloud-run",
+    "accessibility",
+    "non-partisan"
+  ],
   "author": "VoterPath Team",
   "license": "MIT",
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
-    "express": "^4.19.2",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
   },
   "devDependencies": {
     "eslint": "^9.0.0"

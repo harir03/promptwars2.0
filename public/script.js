@@ -1,14 +1,24 @@
 /**
- * VoterPath — Main frontend script
- * Handles: scroll animations, progress bar, tooltips, theme toggle,
- *          state deadline selector, and Gemini AI chat.
+ * VoterPath — Main Frontend Script
+ *
+ * Handles all client-side interactivity:
+ * - Scroll-driven reveal animations with IntersectionObserver
+ * - Reading progress bar with ARIA updates
+ * - Accessible jargon tooltips (keyboard + click)
+ * - Dark/light theme toggle with localStorage persistence
+ * - State voter registration deadline selector
+ * - Gemini AI chat panel with session history
+ * - Google Analytics 4 event tracking
+ *
+ * @module script
+ * @requires DOM — runs only in browser context
  */
 
 'use strict';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-/** @type {string[]} Ordered election phase IDs */
+/** @type {Readonly<string[]>} Ordered election phase IDs for navigation */
 const PHASES = ['registration', 'research', 'voting', 'results'];
 
 /**
@@ -82,15 +92,18 @@ function getStateData(state) {
 
 /**
  * Sanitizes user input by stripping HTML tags and truncating to maxLength.
+ * Prevents XSS by removing all HTML tags and javascript: protocol strings.
+ *
  * @param {string} input - Raw user input
  * @param {number} [maxLength=500] - Maximum character length
- * @returns {string} Sanitized string
+ * @returns {string} Sanitized string, empty string if input is invalid
  */
 function sanitizeInput(input, maxLength = 500) {
   if (!input || typeof input !== 'string') return '';
   return input
     .replace(/<[^>]*>/g, '')
     .replace(/javascript:/gi, '')
+    .replace(/on\w+\s*=/gi, '')
     .slice(0, maxLength)
     .trim();
 }
@@ -265,8 +278,8 @@ function initStateSelector() {
 
 // ── Gemini AI Chat ───────────────────────────────────────────────────────────
 
-/** @type {Array<{role: string, text: string}>} In-memory chat history */
-let chatHistory = [];
+/** @type {Array<{role: string, text: string}>} In-memory chat conversation turns */
+let chatHistory = []; // mutated by push/restore
 
 /**
  * Appends a message bubble to the chat log.
@@ -326,7 +339,7 @@ async function sendMessage(text) {
     // Persist to sessionStorage
     try {
       sessionStorage.setItem('voterpath_chat_history', JSON.stringify(chatHistory));
-    } catch (_) { /* storage full — silent fail */ }
+    } catch (_e) { /* storage full — silent fail */ }
 
     // Track in GA4
     if (typeof gtag !== 'undefined') {
@@ -369,7 +382,7 @@ function initChat() {
     try {
       const saved = sessionStorage.getItem('voterpath_chat_history');
       if (saved) chatHistory = JSON.parse(saved);
-    } catch (_) { /* corrupt storage — silent fail */ }
+    } catch (_e) { /* corrupt storage — silent fail */ }
   }
 
   /** @returns {void} */

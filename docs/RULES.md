@@ -32,7 +32,8 @@ prompt wars/
 - Frontend: Vanilla HTML, CSS, JavaScript (no React, no Vue, no Svelte)
 - Backend: Node.js + Express (for Gemini proxy)
 - AI: Google Gemini API only (`@google/generative-ai`)
-- Deployment: Google Cloud Run
+- Deployment: Google Cloud Run / Render / Vercel
+- Automation: agent-browser CLI (for E2E testing and scraping)
 
 **API key is never in the frontend.**
 - `GEMINI_API_KEY` is always loaded from `process.env` on the server
@@ -111,3 +112,51 @@ prompt wars/
 - [ ] `.env` NOT committed
 - [ ] `README.md` has setup + live URL
 - [ ] All external links have `rel="noopener noreferrer"`
+
+---
+
+## 8. Browser Automation & Testing
+
+Whenever the project requires web automation, scraping, or complex E2E testing (e.g., verifying registration links, checking live election deadlines, or visual regression), the **`agent-browser`** CLI tool must be used.
+
+**Automation Rules:**
+- **Mode:** Use `--headed` for manual verification/debugging and headless (default) for CI/automation.
+- **Workflow:** Always follow the `open` -> `snapshot` -> `action` pattern.
+- **Selectors:** Prioritize `refs` (@e1, @e2) from the accessibility snapshot over brittle CSS selectors.
+- **Screenshots:** Capture screenshots (`agent-browser screenshot`) for any automated verification failures.
+
+---
+
+## 9. Karpathy Guidelines (Think Before Coding)
+
+To reduce common LLM coding mistakes, follow these principles derived from Andrej Karpathy:
+
+1. **Think Before Coding**: State assumptions explicitly. Surface tradeoffs. Ask if confused.
+2. **Simplicity First**: Minimum code that solves the problem. No speculative abstractions.
+3. **Surgical Changes**: Touch only what you must. Match existing style. No "drive-by" refactoring.
+4. **Goal-Driven Execution**: Define verifiable success criteria (Plan -> Step -> Verify).
+
+---
+
+## 10. gstack Builder Ethos
+
+Follow these principles to move at 100x speed with AI:
+
+- **Boil the Lake**: The marginal cost of completeness is near-zero. Do the complete implementation (100% test coverage, all edge cases) every time.
+- **Search Before Building**: Know what exists (Standard patterns, Best practices) before deciding to build from scratch. The cost of checking is zero.
+- **User Sovereignty**: AI recommends, you decide. Great AI products augment the user, not replace them. Always ask before making major architectural pivots.
+- **Build for Yourself**: Solve your own problems. Specificity beats generality.
+
+---
+
+## 11. The Workflow Loop
+
+Execute every feature following this structured loop:
+
+1. **Think**: Refame the product. Ask the "forcing questions." Design doc first.
+2. **Plan**: Separate the "CEO Review" (Scope) from the "Eng Review" (Architecture).
+3. **Build**: Surgical, simple implementation based on the approved plan.
+4. **Review**: Find bugs that pass CI. Auto-fix the obvious.
+5. **QA**: Use **`agent-browser`** to test the live staging/production URL.
+6. **Ship**: Sync, run tests, audit coverage, and update documentation.
+7. **Reflect**: Periodic retrospective on shipping streaks and growth.

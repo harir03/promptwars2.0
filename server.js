@@ -1,7 +1,14 @@
 /**
- * VoterPath — Express backend server
+ * VoterPath — Express Backend Server
+ *
  * Proxies Gemini API calls so the API key never touches the client.
- * Supports deployment on: Render, Vercel, and Google Cloud Run.
+ * Implements security hardening (CSP, rate limiting, input validation).
+ * Supports deployment on: Google Cloud Run, Render, and Vercel.
+ *
+ * @module server
+ * @requires express
+ * @requires @google/generative-ai
+ * @requires dotenv
  */
 
 'use strict';
@@ -12,66 +19,35 @@ require('dotenv').config();
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const app = express();
+// ── Constants ────────────────────────────────────────────────────────────────
+
+/** @type {number} Server port — Cloud Run requires 8080 */
 const PORT = process.env.PORT || 8080;
 
-// ── CORS Middleware (for split Vercel frontend + Render API deploys) ─────────
-/**
- * Allows cross-origin requests from allowed frontend origins.
- * @param {import('express').Request} req
- * @param {import('express').Response} res
- * @param {import('express').NextFunction} next
- */
-app.use((req, res, next) => {
-  const allowedOrigins = [
-    process.env.FRONTEND_URL,
-    'http://localhost:8080',
-    'http://localhost:3000',
-  ].filter(Boolean);
+/** @type {number} Maximum allowed message length in characters */
+const MAX_MESSAGE_LENGTH = 1000;
 
-  const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.sendStatus(204);
-  next();
-});
+/** @type {number} Maximum conversation history turns sent to Gemini */
+const MAX_HISTORY_TURNS = 10;
 
-// ── Security Middleware ─────────────────────────────────────────────────────
-app.use((req, res, next) => {
-  res.setHeader(
-    'Content-Security-Policy',
-    "default-src 'self'; " +
-    "script-src 'self' https://www.googletagmanager.com https://www.google-analytics.com 'unsafe-inline'; " +
-    "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; " +
-    "font-src 'self' https://fonts.gstatic.com; " +
-    "connect-src 'self' https://www.google-analytics.com https://*.onrender.com; " +
-    "img-src 'self' data: https:; " +
-    "frame-ancestors 'none';"
-  );
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  next();
-});
+/** @type {number} Rate limit window in milliseconds (15 minutes) */
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 
-app.use(express.json({ limit: '10kb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+/** @type {number} Maximum requests per IP within the rate limit window */
+const RATE_LIMIT_MAX_REQUESTS = 50;
 
-// ── Health Check ────────────────────────────────────────────────────────────
-/**
- * GET /health — Returns server status for uptime monitors.
- * @returns {{ status: string, service: string, timestamp: string }}
- */
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', service: 'voterpath', timestamp: new Date().toISOString() });
-});
+/** @type {string} Gemini model identifier */
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
-// ── Gemini API Proxy ────────────────────────────────────────────────────────
-const SYSTEM_INSTRUCTION = `You are VoterPath AI, a helpful, accurate, and strictly non-partisan civic education assistant.
+/** @type {number} Gemini generation temperature (low for factual accuracy) */
+const GEMINI_TEMPERATURE = 0.3;
+
+/** @type {number} Gemini maximum output token count */
+const GEMINI_MAX_TOKENS = 512;
+
+/** @type {string} Non-partisan system instruction for the AI assistant */
+const SYSTEM_INSTRUCTION = `You are VoterPath AI, a helpful, accurate, and strictly \
+non-partisan civic education assistant.
 
 YOUR ONLY PURPOSE is to help users understand the US election process, including:
 - Voter registration: steps, eligibility, deadlines, same-day registration
@@ -94,76 +70,296 @@ STRICT RULES — never violate these:
 
 TONE: Warm, encouraging, trustworthy, clear — like a helpful librarian, not a politician.`;
 
-/**
- * POST /api/chat — Proxies a user message to the Gemini API.
- * @param {string} req.body.message - The user's question (max 1000 chars)
- * @param {Array}  req.body.history - Prior chat turns for context (max 10)
- * @returns {{ reply: string }} JSON with AI response
- */
-app.post('/api/chat', async (req, res) => {
-  const { message, history = [] } = req.body;
+// ── App Initialization ───────────────────────────────────────────────────────
 
-  if (!message || typeof message !== 'string') {
-    return res.status(400).json({ error: 'Invalid request: message is required.' });
+const app = express();
+
+// Security: remove X-Powered-By to prevent server fingerprinting (OWASP A09)
+app.disable('x-powered-by');
+
+// Trust first proxy for accurate IP detection behind Cloud Run / load balancers
+app.set('trust proxy', 1);
+
+// ── In-Memory Rate Limiter ───────────────────────────────────────────────────
+
+/**
+ * Simple in-memory rate limiter keyed by IP address.
+ * Resets after RATE_LIMIT_WINDOW_MS. Suitable for single-instance deployments.
+ * @type {Map<string, { count: number, resetTime: number }>}
+ */
+const rateLimitStore = new Map();
+
+/**
+ * Rate-limiting middleware — restricts requests per IP within a sliding window.
+ * Returns 429 Too Many Requests if the limit is exceeded.
+ *
+ * @param {import('express').Request} req - Express request object
+ * @param {import('express').Response} res - Express response object
+ * @param {import('express').NextFunction} next - Express next function
+ * @returns {void}
+ */
+function rateLimiter(req, res, next) {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const record = rateLimitStore.get(ip);
+
+  if (!record || now > record.resetTime) {
+    rateLimitStore.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return next();
   }
 
-  if (message.length > 1000) {
-    return res.status(400).json({
-      error: 'Message too long. Please keep questions under 1000 characters.',
+  record.count += 1;
+
+  if (record.count > RATE_LIMIT_MAX_REQUESTS) {
+    res.setHeader('Retry-After', Math.ceil((record.resetTime - now) / 1000));
+    return res.status(429).json({
+      error: 'Too many requests. Please wait a few minutes before trying again.',
     });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    console.error('GEMINI_API_KEY is not configured');
-    return res.status(503).json({ error: 'AI service is not available.' });
+  return next();
+}
+
+// Periodic cleanup of expired rate-limit entries to prevent memory leaks (DoS)
+const _rateLimitCleanup = setInterval(() => {
+  const now = Date.now();
+  for (const [ip, record] of rateLimitStore) {
+    if (now > record.resetTime) {
+      rateLimitStore.delete(ip);
+    }
+  }
+}, RATE_LIMIT_WINDOW_MS);
+_rateLimitCleanup.unref(); // Allow clean process shutdown
+
+// ── CORS Middleware ──────────────────────────────────────────────────────────
+
+/**
+ * Configures Cross-Origin Resource Sharing for split frontend deployments.
+ * Allows requests only from explicitly whitelisted origins.
+ *
+ * @param {import('express').Request} req - Express request object
+ * @param {import('express').Response} res - Express response object
+ * @param {import('express').NextFunction} next - Express next function
+ * @returns {void}
+ */
+function corsMiddleware(req, res, next) {
+  const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    'http://localhost:8080',
+    'http://localhost:3000',
+  ].filter(Boolean);
+
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Vary', 'Origin');
   }
 
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+
+  return next();
+}
+
+// ── Security Headers Middleware ──────────────────────────────────────────────
+
+/**
+ * Sets comprehensive HTTP security headers on every response.
+ * Implements Content-Security-Policy, X-Frame-Options, and other hardening headers.
+ *
+ * @param {import('express').Request} _req - Express request object (unused)
+ * @param {import('express').Response} res - Express response object
+ * @param {import('express').NextFunction} next - Express next function
+ * @returns {void}
+ */
+function securityHeaders(_req, res, next) {
+  // Strict CSP — no 'unsafe-inline' for script-src (GA moved to external ga.js)
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; " +
+    "script-src 'self' https://www.googletagmanager.com " +
+    'https://www.google-analytics.com; ' +
+    "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "connect-src 'self' https://www.google-analytics.com " +
+    'https://*.onrender.com https://*.run.app; ' +
+    "img-src 'self' data: https:; " +
+    "frame-ancestors 'none'; " +
+    "base-uri 'self'; " +
+    "form-action 'self'; " +
+    "object-src 'none';"
+  );
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=(), payment=(), usb=()'
+  );
+  // Modern standard: disable XSS auditor, rely on CSP (OWASP recommendation)
+  res.setHeader('X-XSS-Protection', '0');
+  res.setHeader(
+    'Strict-Transport-Security',
+    'max-age=31536000; includeSubDomains; preload'
+  );
+  // Cross-Origin isolation headers
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+  res.setHeader('X-Download-Options', 'noopen');
+  next();
+}
+
+// ── Apply Middleware ─────────────────────────────────────────────────────────
+
+app.use(corsMiddleware);
+app.use(securityHeaders);
+app.use(express.json({ limit: '10kb' }));
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ── Health Check Endpoint ────────────────────────────────────────────────────
+
+/**
+ * GET /health — Returns server health status for uptime monitors and
+ * container orchestrators (Cloud Run, Docker, Kubernetes).
+ *
+ * @param {import('express').Request} _req - Express request object (unused)
+ * @param {import('express').Response} res - Express response object
+ * @returns {void}
+ */
+app.get('/health', (_req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'voterpath',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ── Gemini AI Chat Proxy ─────────────────────────────────────────────────────
+
+/**
+ * POST /api/chat — Proxies a user message to the Google Gemini API.
+ * Validates input, enforces rate limits, maps chat history roles,
+ * and returns the AI-generated response.
+ *
+ * @param {import('express').Request} req - Express request with body.message
+ * @param {import('express').Response} res - Express response with { reply }
+ * @returns {Promise<void>}
+ *
+ * @example
+ * // Request
+ * POST /api/chat
+ * { "message": "How do I register to vote?", "history": [] }
+ *
+ * // Response
+ * { "reply": "You can register at vote.gov..." }
+ */
+app.post('/api/chat', rateLimiter, async (req, res) => {
+  // Prevent caching of API responses containing user data
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.setHeader('Pragma', 'no-cache');
+
+  const { message, history = [] } = req.body;
+
+  // ── History array validation ──────────────────────────────────────────────
+  if (!Array.isArray(history)) {
+    return res.status(400).json({
+      error: 'Invalid request: history must be an array.',
+    });
+  }
+
+  // ── Input validation ──────────────────────────────────────────────────────
+  if (!message || typeof message !== 'string') {
+    return res.status(400).json({
+      error: 'Invalid request: message is required and must be a string.',
+    });
+  }
+
+  const trimmedMessage = message.trim();
+
+  if (trimmedMessage.length === 0) {
+    return res.status(400).json({
+      error: 'Invalid request: message cannot be empty.',
+    });
+  }
+
+  if (trimmedMessage.length > MAX_MESSAGE_LENGTH) {
+    return res.status(400).json({
+      error: `Message too long. Please keep questions under ${MAX_MESSAGE_LENGTH} characters.`,
+    });
+  }
+
+  // ── API key check ─────────────────────────────────────────────────────────
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    console.error('[VoterPath] GEMINI_API_KEY is not configured');
+    return res.status(503).json({
+      error: 'AI service is not available. Please try again later.',
+    });
+  }
+
+  // ── Gemini API call ───────────────────────────────────────────────────────
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
+      model: GEMINI_MODEL,
       systemInstruction: SYSTEM_INSTRUCTION,
     });
 
-    // Map our internal 'ai' role to Gemini's expected 'model' role
+    // Map internal 'ai' role to Gemini's expected 'model' role
     const geminiHistory = history
-      .slice(-10)
-      .filter((turn) => turn.text && turn.role)
+      .slice(-MAX_HISTORY_TURNS)
+      .filter((turn) => turn && turn.text && turn.role)
       .map((turn) => ({
         role: turn.role === 'ai' ? 'model' : 'user',
-        parts: [{ text: turn.text }],
+        parts: [{ text: String(turn.text) }],
       }));
 
     const chat = model.startChat({
       history: geminiHistory,
       generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 512,
+        temperature: GEMINI_TEMPERATURE,
+        maxOutputTokens: GEMINI_MAX_TOKENS,
       },
     });
 
-    const result = await chat.sendMessage(message);
+    const result = await chat.sendMessage(trimmedMessage);
     const reply = result.response.text();
 
     return res.status(200).json({ reply });
   } catch (err) {
-    console.error('Gemini API error:', err.message);
+    console.error('[VoterPath] Gemini API error:', err.message);
     return res.status(502).json({
       error: 'Failed to reach AI service. Please try again.',
     });
   }
 });
 
-// ── Serve SPA ────────────────────────────────────────────────────────────────
-app.get('*', (req, res) => {
+// ── SPA Fallback ─────────────────────────────────────────────────────────────
+
+/**
+ * GET * — Serves the SPA index.html for any unmatched route.
+ * This enables client-side routing and deep linking.
+ *
+ * @param {import('express').Request} _req - Express request object (unused)
+ * @param {import('express').Response} res - Express response object
+ * @returns {void}
+ */
+app.get('*', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ── Start Server (skipped when imported by Vercel) ───────────────────────────
+// ── Server Bootstrap ─────────────────────────────────────────────────────────
+
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`VoterPath server running on port ${PORT}`);
+    console.log(`[VoterPath] Server running on port ${PORT}`);
+    console.log(`[VoterPath] Health check: http://localhost:${PORT}/health`);
   });
 }
 

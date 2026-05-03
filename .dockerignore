@@ -1,0 +1,23 @@
+# Build context exclusions for smaller, faster Docker builds
+node_modules
+.git
+.gitignore
+.env
+.env.*
+*.md
+docs/
+tests/
+agent-browser-repo/
+gstack-repo/
+karpathy-skills/
+.antigravity/
+.vscode/
+.idea/
+coverage/
+*.log
+*.png
+chat-test.js
+list-models.js
+eslint.config.js
+render.yaml
+vercel.json

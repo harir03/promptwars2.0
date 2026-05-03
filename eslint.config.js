@@ -1,0 +1,49 @@
+/**
+ * ESLint Flat Config for VoterPath
+ * Zero-warning policy enforced in CI.
+ * @see https://eslint.org/docs/latest/use/configure/configuration-files-new
+ */
+export default [
+  {
+    files: ['**/*.js'],
+    ignores: ['node_modules/**', 'agent-browser-repo/**', 'gstack-repo/**', 'karpathy-skills/**'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: {
+        console: 'readonly',
+        document: 'readonly',
+        window: 'readonly',
+        localStorage: 'readonly',
+        sessionStorage: 'readonly',
+        fetch: 'readonly',
+        gtag: 'readonly',
+        IntersectionObserver: 'readonly',
+        module: 'readonly',
+        require: 'readonly',
+        process: 'readonly',
+        __dirname: 'readonly',
+        setTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearTimeout: 'readonly',
+        Date: 'readonly',
+        Map: 'readonly',
+        HTMLElement: 'readonly',
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
+      'no-var': 'error',
+      'prefer-const': 'error',
+      'eqeqeq': ['error', 'always'],
+      'no-eval': 'error',
+      'no-implied-eval': 'error',
+      'no-new-func': 'error',
+      'no-console': 'off',
+      'curly': ['error', 'multi-line'],
+    },
+  },
+];

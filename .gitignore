@@ -1,5 +1,40 @@
+# Dependencies
 node_modules/
+
+# Environment variables (NEVER commit secrets)
 .env
-progress.json
-*.log
+.env.local
+.env.production
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+
+# Build artifacts
+dist/
+.vercel/
+
+# Test artifacts
+coverage/
+progress.json
+
+# Screenshots from agent-browser
+page.png
+page_headed.png
+
+# Cloned reference repos (not part of the project)
+agent-browser-repo/
+gstack-repo/
+karpathy-skills/
+
+# Dev scratch files
+chat-test.js
+list-models.js
