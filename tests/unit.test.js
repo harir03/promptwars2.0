@@ -357,6 +357,137 @@ test('.dockerignore excludes sensitive files', () => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
+// 6. GOOGLE CLOUD INTEGRATION
+// ══════════════════════════════════════════════════════════════════════════════
+console.log('\n☁️  Google Cloud Integration');
+
+test('cloudbuild.yaml exists for CI/CD pipeline', () => {
+  const fs = require('fs');
+  const buildFile = require('path').join(__dirname, '..', 'cloudbuild.yaml');
+  assert.ok(fs.existsSync(buildFile), 'cloudbuild.yaml must exist');
+});
+
+test('cloudbuild.yaml references Cloud Run deploy', () => {
+  const fs = require('fs');
+  const content = fs.readFileSync(
+    require('path').join(__dirname, '..', 'cloudbuild.yaml'),
+    'utf8'
+  );
+  assert.ok(content.includes('run'), 'Should reference Cloud Run');
+  assert.ok(content.includes('deploy'), 'Should include deploy step');
+  assert.ok(content.includes('gcr.io'), 'Should push to Google Container Registry');
+});
+
+test('cloudbuild.yaml uses Secret Manager for API key', () => {
+  const fs = require('fs');
+  const content = fs.readFileSync(
+    require('path').join(__dirname, '..', 'cloudbuild.yaml'),
+    'utf8'
+  );
+  assert.ok(content.includes('set-secrets'), 'Should use --set-secrets for Secret Manager');
+  assert.ok(content.includes('gemini-api-key'), 'Should reference gemini-api-key secret');
+});
+
+test('cloudbuild.yaml runs lint and test before deploy', () => {
+  const fs = require('fs');
+  const content = fs.readFileSync(
+    require('path').join(__dirname, '..', 'cloudbuild.yaml'),
+    'utf8'
+  );
+  assert.ok(content.includes('lint'), 'Should run lint step');
+  assert.ok(content.includes('test'), 'Should run test step');
+});
+
+test('server.js uses Google Cloud structured logging', () => {
+  const fs = require('fs');
+  const content = fs.readFileSync(
+    require('path').join(__dirname, '..', 'server.js'),
+    'utf8'
+  );
+  assert.ok(content.includes('cloudLog'), 'Should use cloudLog function');
+  assert.ok(content.includes('severity'), 'Should include severity field');
+  assert.ok(
+    content.includes('logging.googleapis.com/labels'),
+    'Should use Cloud Logging label format'
+  );
+});
+
+test('server.js uses Google Cloud Error Reporting format', () => {
+  const fs = require('fs');
+  const content = fs.readFileSync(
+    require('path').join(__dirname, '..', 'server.js'),
+    'utf8'
+  );
+  assert.ok(content.includes('reportError'), 'Should use reportError function');
+  assert.ok(
+    content.includes('clouderrorreporting'),
+    'Should use Error Reporting @type annotation'
+  );
+  assert.ok(
+    content.includes('serviceContext'),
+    'Should include serviceContext for Error Reporting'
+  );
+});
+
+test('server.js uses Secret Manager for API key retrieval', () => {
+  const fs = require('fs');
+  const content = fs.readFileSync(
+    require('path').join(__dirname, '..', 'server.js'),
+    'utf8'
+  );
+  assert.ok(content.includes('getGeminiApiKey'), 'Should use getGeminiApiKey function');
+  assert.ok(content.includes('Secret Manager'), 'Should reference Secret Manager');
+});
+
+test('server.js detects Google Cloud environment', () => {
+  const fs = require('fs');
+  const content = fs.readFileSync(
+    require('path').join(__dirname, '..', 'server.js'),
+    'utf8'
+  );
+  assert.ok(
+    content.includes('GOOGLE_CLOUD_PROJECT'),
+    'Should check GOOGLE_CLOUD_PROJECT env var'
+  );
+  assert.ok(content.includes('K_SERVICE'), 'Should check K_SERVICE (Cloud Run auto-set)');
+  assert.ok(content.includes('IS_CLOUD'), 'Should have IS_CLOUD flag');
+});
+
+test('Google Analytics 4 external file exists', () => {
+  const fs = require('fs');
+  const gaFile = require('path').join(__dirname, '..', 'public', 'ga.js');
+  assert.ok(fs.existsSync(gaFile), 'public/ga.js must exist');
+  const content = fs.readFileSync(gaFile, 'utf8');
+  assert.ok(content.includes('gtag'), 'ga.js should define gtag');
+  assert.ok(content.includes('anonymize_ip'), 'ga.js should enable IP anonymization');
+});
+
+test('Google Fonts loaded in index.html', () => {
+  const fs = require('fs');
+  const html = fs.readFileSync(
+    require('path').join(__dirname, '..', 'public', 'index.html'),
+    'utf8'
+  );
+  assert.ok(
+    html.includes('fonts.googleapis.com'),
+    'Should load Google Fonts from fonts.googleapis.com'
+  );
+  assert.ok(html.includes('Outfit'), 'Should use Outfit font family');
+});
+
+test('health endpoint includes cloud detection fields', () => {
+  const fs = require('fs');
+  const content = fs.readFileSync(
+    require('path').join(__dirname, '..', 'server.js'),
+    'utf8'
+  );
+  assert.ok(
+    content.includes("'google-cloud-run'"),
+    'Health endpoint should report cloud platform'
+  );
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
 // SUMMARY
 // ══════════════════════════════════════════════════════════════════════════════
 console.log(`\n${'═'.repeat(50)}`);
@@ -365,3 +496,4 @@ console.log(`  Pass Rate:    ${((passed / total) * 100).toFixed(1)}%`);
 console.log(`${'═'.repeat(50)}\n`);
 
 if (failed > 0) process.exit(1);
+

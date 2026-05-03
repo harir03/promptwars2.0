@@ -5,6 +5,13 @@
  * Implements security hardening (CSP, rate limiting, input validation).
  * Supports deployment on: Google Cloud Run, Render, and Vercel.
  *
+ * Google Cloud integrations:
+ * - Google Gemini API (AI chat)
+ * - Google Cloud Logging (structured JSON logs)
+ * - Google Cloud Error Reporting (automatic error capture)
+ * - Google Cloud Secret Manager (API key management)
+ * - Google Analytics 4 (client-side, via ga.js)
+ *
  * @module server
  * @requires express
  * @requires @google/generative-ai
@@ -18,6 +25,106 @@ const path = require('path');
 require('dotenv').config();
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+// ── Google Cloud Structured Logging ──────────────────────────────────────────
+// Cloud Run automatically ingests JSON-formatted stdout as structured logs
+// into Google Cloud Logging. See: https://cloud.google.com/run/docs/logging
+
+/** @type {string} Google Cloud project ID (auto-detected on Cloud Run) */
+const GCP_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || '';
+
+/** @type {boolean} Whether we are running in a Google Cloud environment */
+const IS_CLOUD = Boolean(GCP_PROJECT || process.env.K_SERVICE);
+
+/**
+ * Emits a structured JSON log compatible with Google Cloud Logging.
+ * When running on Cloud Run, these are automatically ingested and searchable
+ * in the Cloud Console Logs Explorer with severity filtering.
+ *
+ * @param {'INFO'|'WARNING'|'ERROR'|'DEBUG'} severity - Log severity level
+ * @param {string} message - Human-readable log message
+ * @param {Object} [payload={}] - Additional structured data
+ * @returns {void}
+ * @see https://cloud.google.com/logging/docs/structured-logging
+ */
+function cloudLog(severity, message, payload = {}) {
+  if (IS_CLOUD) {
+    // Google Cloud Logging structured format
+    const entry = {
+      severity,
+      message,
+      timestamp: new Date().toISOString(),
+      'logging.googleapis.com/labels': {
+        service: 'voterpath',
+        version: '1.0.0',
+      },
+      ...payload,
+    };
+    console.log(JSON.stringify(entry));
+  } else {
+    // Local development — human-readable
+    const prefix = `[VoterPath:${severity}]`;
+    if (severity === 'ERROR') {
+      console.error(prefix, message, payload);
+    } else {
+      console.log(prefix, message, Object.keys(payload).length ? payload : '');
+    }
+  }
+}
+
+/**
+ * Reports an error to Google Cloud Error Reporting.
+ * Cloud Run automatically captures errors in the correct JSON format.
+ *
+ * @param {Error} err - The error object
+ * @param {string} context - Where the error occurred
+ * @returns {void}
+ * @see https://cloud.google.com/error-reporting/docs/formatting-error-messages
+ */
+function reportError(err, context) {
+  if (IS_CLOUD) {
+    // Google Cloud Error Reporting structured format
+    const errorEntry = {
+      severity: 'ERROR',
+      message: err.stack || err.message,
+      '@type': 'type.googleapis.com/google.devtools.clouderrorreporting.v1beta1.ReportedErrorEvent',
+      context: {
+        reportLocation: {
+          functionName: context,
+        },
+        httpRequest: {},
+      },
+      serviceContext: {
+        service: 'voterpath',
+        version: '1.0.0',
+      },
+    };
+    console.error(JSON.stringify(errorEntry));
+  } else {
+    console.error(`[VoterPath:ERROR] ${context}:`, err.message);
+  }
+}
+
+// ── Google Cloud Secret Manager Integration ──────────────────────────────────
+// On Cloud Run, secrets are injected as environment variables via --set-secrets.
+// This function validates and retrieves the API key from the environment,
+// supporting both direct env vars and Secret Manager-mounted secrets.
+// See: https://cloud.google.com/run/docs/configuring/secrets
+
+/**
+ * Retrieves the Gemini API key from environment (supports Secret Manager).
+ * On Cloud Run, the key is mounted via `--set-secrets GEMINI_API_KEY=secret:version`.
+ *
+ * @returns {string|null} The API key or null if not configured
+ */
+function getGeminiApiKey() {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) {
+    cloudLog('ERROR', 'GEMINI_API_KEY is not configured — check Secret Manager or .env');
+    return null;
+  }
+  return key;
+}
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -236,6 +343,8 @@ app.get('/health', (_req, res) => {
     service: 'voterpath',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
+    cloud: IS_CLOUD ? 'google-cloud-run' : 'local',
+    project: GCP_PROJECT || undefined,
   });
 });
 
@@ -293,11 +402,10 @@ app.post('/api/chat', rateLimiter, async (req, res) => {
     });
   }
 
-  // ── API key check ─────────────────────────────────────────────────────────
-  const apiKey = process.env.GEMINI_API_KEY;
+  // ── API key check (supports Secret Manager) ──────────────────────────────
+  const apiKey = getGeminiApiKey();
 
   if (!apiKey) {
-    console.error('[VoterPath] GEMINI_API_KEY is not configured');
     return res.status(503).json({
       error: 'AI service is not available. Please try again later.',
     });
@@ -333,7 +441,12 @@ app.post('/api/chat', rateLimiter, async (req, res) => {
 
     return res.status(200).json({ reply });
   } catch (err) {
-    console.error('[VoterPath] Gemini API error:', err.message);
+    // Report to Google Cloud Error Reporting
+    reportError(err, 'POST /api/chat');
+    cloudLog('WARNING', 'Gemini API call failed', {
+      error: err.message,
+      httpRequest: { method: 'POST', url: '/api/chat' },
+    });
     return res.status(502).json({
       error: 'Failed to reach AI service. Please try again.',
     });
@@ -358,8 +471,13 @@ app.get('*', (_req, res) => {
 
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`[VoterPath] Server running on port ${PORT}`);
-    console.log(`[VoterPath] Health check: http://localhost:${PORT}/health`);
+    cloudLog('INFO', `Server running on port ${PORT}`, {
+      port: PORT,
+      environment: process.env.NODE_ENV || 'development',
+      cloud: IS_CLOUD,
+      project: GCP_PROJECT || 'local',
+    });
+    cloudLog('INFO', `Health check: http://localhost:${PORT}/health`);
   });
 }
 

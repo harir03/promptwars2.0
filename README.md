@@ -22,10 +22,13 @@ VoterPath is a scroll-driven, AI-powered civic education web app that guides use
 |-------|-----------|
 | **Frontend** | Vanilla HTML, CSS (Custom Properties, Glassmorphism), JavaScript |
 | **Backend** | Node.js 18+ with Express (server-side Gemini proxy) |
-| **AI** | Google Gemini API (`@google/generative-ai`) |
-| **Analytics** | Google Analytics 4 (GA4) |
+| **AI** | Google Gemini API (`@google/generative-ai`, model: `gemini-2.5-flash`) |
+| **Analytics** | Google Analytics 4 (GA4) with privacy-preserving `anonymize_ip` |
+| **Cloud** | Google Cloud Run, Cloud Build, Cloud Logging, Cloud Error Reporting, Secret Manager |
+| **Fonts** | Google Fonts (Outfit: 300, 400, 600, 800) |
 | **Deployment** | Google Cloud Run (primary), Render, Vercel |
-| **Testing** | Node.js built-in `assert` module (40+ unit tests) |
+| **CI/CD** | Google Cloud Build (`cloudbuild.yaml`) |
+| **Testing** | Node.js built-in `assert` module (50+ unit tests) |
 | **Containerization** | Multi-stage Dockerfile with non-root user |
 
 ## 🚀 Quick Start
@@ -84,12 +87,40 @@ The repository includes a production-grade multi-stage `Dockerfile` with:
 - Health check endpoint at `/health`
 - Minimal image size via `node:18-alpine`
 
+**Deploy with Secret Manager (recommended):**
+
+```bash
+# 1. Store API key in Google Secret Manager
+gcloud secrets create gemini-api-key --replication-policy="automatic"
+echo -n "YOUR_KEY" | gcloud secrets versions add gemini-api-key --data-file=-
+
+# 2. Deploy with Secret Manager integration
+gcloud run deploy voterpath \
+  --source . \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-secrets GEMINI_API_KEY=gemini-api-key:latest
+```
+
+**Or deploy with direct env vars:**
+
 ```bash
 gcloud run deploy voterpath \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \
   --set-env-vars GEMINI_API_KEY=your_key_here
+```
+
+### Google Cloud Build (CI/CD)
+
+The `cloudbuild.yaml` automates the full pipeline:
+1. `npm ci` → `npm run lint` → `npm test`
+2. Build Docker image → Push to Google Container Registry
+3. Deploy to Cloud Run with Secret Manager
+
+```bash
+gcloud builds submit --config cloudbuild.yaml
 ```
 
 ### Render
@@ -121,6 +152,21 @@ The repository includes a `vercel.json` configuration:
 | **Server Fingerprinting** | `X-Powered-By` disabled; no server version leakage |
 | **Cache Control** | API responses set `Cache-Control: no-store` to prevent sensitive data caching |
 | **Non-Root Container** | Dockerfile runs as unprivileged `voterpath` user with read-only app files |
+
+## ☁️ Google Cloud Integration
+
+VoterPath integrates **8 Google services** for a production-grade experience:
+
+| # | Google Service | Usage | Location |
+|---|---------------|-------|----------|
+| 1 | **Google Gemini API** | AI-powered non-partisan civic education chatbot (`gemini-2.5-flash`) | `server.js` — `/api/chat` endpoint |
+| 2 | **Google Cloud Run** | Containerized serverless deployment with auto-scaling | `Dockerfile`, `cloudbuild.yaml` |
+| 3 | **Google Cloud Build** | CI/CD pipeline: lint → test → build → deploy | `cloudbuild.yaml` |
+| 4 | **Google Cloud Logging** | Structured JSON logs auto-ingested by Cloud Logging | `server.js` — `cloudLog()` |
+| 5 | **Google Cloud Error Reporting** | Automatic error capture in Error Reporting format | `server.js` — `reportError()` |
+| 6 | **Google Cloud Secret Manager** | Secure API key management via `--set-secrets` | `server.js` — `getGeminiApiKey()`, `cloudbuild.yaml` |
+| 7 | **Google Analytics 4** | Privacy-preserving analytics with `anonymize_ip` | `public/ga.js`, `public/index.html` |
+| 8 | **Google Fonts** | Outfit typeface (300, 400, 600, 800 weights) | `public/index.html`, `public/styles.css` |
 
 ## ♿ Accessibility (WCAG 2.1 AA)
 

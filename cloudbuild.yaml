@@ -1,0 +1,93 @@
+# ── VoterPath — Google Cloud Build CI/CD Pipeline ─────────────────────────────
+# Triggers: Push to main branch
+# Pipeline: Install → Lint → Test → Build Docker → Deploy to Cloud Run
+
+steps:
+  # Step 1: Install dependencies
+  - name: 'node:18'
+    entrypoint: 'npm'
+    args: ['ci']
+    id: 'install'
+
+  # Step 2: Run ESLint (zero-warning policy)
+  - name: 'node:18'
+    entrypoint: 'npm'
+    args: ['run', 'lint']
+    id: 'lint'
+    waitFor: ['install']
+
+  # Step 3: Run unit + server tests
+  - name: 'node:18'
+    entrypoint: 'npm'
+    args: ['test']
+    id: 'test'
+    waitFor: ['install']
+    env:
+      - 'GEMINI_API_KEY=${_GEMINI_API_KEY}'
+
+  # Step 4: Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/voterpath:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/voterpath:latest'
+      - '.'
+    id: 'build'
+    waitFor: ['lint', 'test']
+
+  # Step 5: Push Docker image to Google Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/voterpath:$COMMIT_SHA']
+    id: 'push'
+    waitFor: ['build']
+
+  # Step 6: Push latest tag
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/voterpath:latest']
+    waitFor: ['build']
+
+  # Step 7: Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'voterpath'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/voterpath:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '256Mi'
+      - '--cpu'
+      - '1'
+      - '--max-instances'
+      - '10'
+      - '--set-env-vars'
+      - 'NODE_ENV=production'
+      - '--set-secrets'
+      - 'GEMINI_API_KEY=gemini-api-key:latest'
+    id: 'deploy'
+    waitFor: ['push']
+
+# Store built images in GCR
+images:
+  - 'gcr.io/$PROJECT_ID/voterpath:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/voterpath:latest'
+
+# Substitution variables (set in Cloud Build triggers)
+substitutions:
+  _GEMINI_API_KEY: ''
+
+# Build options
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_MEDIUM'
+
+# Build timeout
+timeout: '600s'
