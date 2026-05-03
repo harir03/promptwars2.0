@@ -1,65 +1,73 @@
+/**
+ * @file VoterPath — Frontend Client
+ * @description Interactive civic education UI: scroll-driven timeline, state deadline
+ *   lookup, input sanitization, theme toggle, and Gemini AI chat integration.
+ * @version 1.0.0
+ * @author VoterPath Team
+ * @license MIT
+ */
+
 'use strict';
 
+/** @type {string[]} Ordered election phases for timeline navigation */
 const PHASES = ['registration', 'research', 'voting', 'results'];
 
+/** @type {Object.<string, {registration: string, onlineEnroll: boolean}>} Indian states/UTs voter info */
 const STATE_DEADLINES = {
-  'Alabama': { deadline: '15 days before election', sameDay: false },
-  'Alaska': { deadline: '30 days before election', sameDay: false },
-  'Arizona': { deadline: '29 days before election', sameDay: false },
-  'Arkansas': { deadline: '30 days before election', sameDay: false },
-  'California': { deadline: '15 days before election', sameDay: true },
-  'Colorado': { deadline: 'Election Day registration available', sameDay: true },
-  'Connecticut': { deadline: '7 days before election', sameDay: true },
-  'Delaware': { deadline: '24 days before election', sameDay: false },
-  'Florida': { deadline: '29 days before election', sameDay: false },
-  'Georgia': { deadline: '29 days before election', sameDay: false },
-  'Hawaii': { deadline: '10 days before election', sameDay: true },
-  'Idaho': { deadline: 'Election Day registration available', sameDay: true },
-  'Illinois': { deadline: '28 days before election', sameDay: true },
-  'Indiana': { deadline: '29 days before election', sameDay: false },
-  'Iowa': { deadline: '15 days before election', sameDay: true },
-  'Kansas': { deadline: '21 days before election', sameDay: false },
-  'Kentucky': { deadline: '29 days before election', sameDay: false },
-  'Louisiana': { deadline: '30 days before election', sameDay: false },
-  'Maine': { deadline: 'Election Day registration available', sameDay: true },
-  'Maryland': { deadline: '21 days before election', sameDay: true },
-  'Massachusetts': { deadline: '10 days before election', sameDay: true },
-  'Michigan': { deadline: '15 days before election', sameDay: true },
-  'Minnesota': { deadline: 'Election Day registration available', sameDay: true },
-  'Mississippi': { deadline: '30 days before election', sameDay: false },
-  'Missouri': { deadline: '27 days before election', sameDay: false },
-  'Montana': { deadline: 'Election Day registration available', sameDay: true },
-  'Nebraska': { deadline: '18 days before election', sameDay: false },
-  'Nevada': { deadline: '5 days before election', sameDay: true },
-  'New Hampshire': { deadline: 'Election Day registration available', sameDay: true },
-  'New Jersey': { deadline: '21 days before election', sameDay: false },
-  'New Mexico': { deadline: '28 days before election', sameDay: false },
-  'New York': { deadline: '25 days before election', sameDay: false },
-  'North Carolina': { deadline: '25 days before election', sameDay: true },
-  'North Dakota': { deadline: 'No registration required!', sameDay: false },
-  'Ohio': { deadline: '30 days before election', sameDay: false },
-  'Oklahoma': { deadline: '25 days before election', sameDay: false },
-  'Oregon': { deadline: '21 days before election', sameDay: true },
-  'Pennsylvania': { deadline: '15 days before election', sameDay: false },
-  'Rhode Island': { deadline: '30 days before election', sameDay: false },
-  'South Carolina': { deadline: '30 days before election', sameDay: false },
-  'South Dakota': { deadline: '15 days before election', sameDay: false },
-  'Tennessee': { deadline: '30 days before election', sameDay: false },
-  'Texas': { deadline: '30 days before election', sameDay: false },
-  'Utah': { deadline: '11 days before election', sameDay: true },
-  'Vermont': { deadline: 'Election Day registration available', sameDay: true },
-  'Virginia': { deadline: '22 days before election', sameDay: false },
-  'Washington': { deadline: '8 days before election', sameDay: true },
-  'West Virginia': { deadline: '21 days before election', sameDay: false },
-  'Wisconsin': { deadline: 'Election Day registration available', sameDay: true },
-  'Wyoming': { deadline: '14 days before election', sameDay: false },
+  'Andhra Pradesh': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Arunachal Pradesh': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Assam': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Bihar': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Chhattisgarh': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Goa': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Gujarat': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Haryana': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Himachal Pradesh': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Jharkhand': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Karnataka': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Kerala': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Madhya Pradesh': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Maharashtra': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Manipur': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Meghalaya': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Mizoram': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Nagaland': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Odisha': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Punjab': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Rajasthan': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Sikkim': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Tamil Nadu': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Telangana': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Tripura': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Uttar Pradesh': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Uttarakhand': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'West Bengal': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Andaman and Nicobar Islands': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Chandigarh': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Dadra and Nagar Haveli and Daman and Diu': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Delhi': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Jammu and Kashmir': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Ladakh': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Lakshadweep': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
+  'Puducherry': { registration: 'Year-round via NVSP portal or Form 6', onlineEnroll: true },
 };
 
+/**
+ * Looks up voter registration info for an Indian state or Union Territory.
+ * @param {string} state - State/UT name (case-sensitive, e.g. "Maharashtra")
+ * @returns {{registration: string, onlineEnroll: boolean}|null} State data or null
+ */
 function getStateData(state) {
   if (!state || typeof state !== 'string') return null;
   return STATE_DEADLINES[state] || null;
 }
 
+/**
+ * Strips HTML tags, dangerous protocols, and event handlers from user input.
+ * @param {string} input - Raw user input
+ * @param {number} [maxLength=500] - Maximum output length
+ * @returns {string} Sanitized string
+ */
 function sanitizeInput(input, maxLength = 500) {
   if (!input || typeof input !== 'string') return '';
   return input
@@ -70,10 +78,20 @@ function sanitizeInput(input, maxLength = 500) {
     .trim();
 }
 
+/**
+ * Returns the zero-based index of an election phase.
+ * @param {string} phase - Phase name (case-insensitive)
+ * @returns {number} Index in PHASES array, or -1 if not found
+ */
 function getPhaseIndex(phase) {
   return PHASES.indexOf(phase.toLowerCase());
 }
 
+/**
+ * Returns the next phase in the election timeline.
+ * @param {string} currentPhase - Current phase name
+ * @returns {string|null} Next phase name or null if at the end
+ */
 function getNextPhase(currentPhase) {
   const idx = getPhaseIndex(currentPhase);
   if (idx === -1 || idx === PHASES.length - 1) return null;
@@ -184,8 +202,8 @@ function initStateSelector() {
       return;
     }
 
-    const sameDayNote = data.sameDay ? ' ✓ Same-day registration available!' : '';
-    infoBox.textContent = `📋 ${state}: ${data.deadline}.${sameDayNote}`;
+    const onlineNote = data.onlineEnroll ? ' ✓ Online enrollment available via NVSP!' : '';
+    infoBox.textContent = `📋 ${state}: ${data.registration}.${onlineNote}`;
 
     if (typeof gtag !== 'undefined') {
       gtag('event', 'state_selected', { event_label: state });

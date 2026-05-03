@@ -9,7 +9,7 @@ These rules apply to every file in this project without exception.
 
 ## 1. What This Project Is
 
-A premium interactive web application that guides users through the US election process.
+A premium interactive web application that guides users through the Indian election process.
 It uses the **Google Gemini API** for AI-powered Q&A and is deployed on **Google Cloud Run**.
 
 The project structure is:

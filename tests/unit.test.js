@@ -25,14 +25,14 @@ function test(name, fn) {
 
 console.log('\n📋 State Deadline Lookup');
 
-test('Returns data for valid state (Texas)', () => {
-  const r = getStateData('Texas');
+test('Returns data for valid state (Maharashtra)', () => {
+  const r = getStateData('Maharashtra');
   assert.ok(r !== null);
-  assert.ok(r.deadline.includes('30 days'));
+  assert.ok(r.registration.includes('NVSP'));
 });
 
-test('Returns data for valid state (California)', () => {
-  assert.strictEqual(getStateData('California').sameDay, true);
+test('Returns data for valid state (Tamil Nadu)', () => {
+  assert.strictEqual(getStateData('Tamil Nadu').onlineEnroll, true);
 });
 
 test('Returns null for unknown state', () => {
@@ -55,41 +55,40 @@ test('Returns null for numeric input', () => {
   assert.strictEqual(getStateData(123), null);
 });
 
-test('North Dakota has no registration required', () => {
-  assert.ok(getStateData('North Dakota').deadline.includes('No registration'));
+test('Delhi has online enrollment', () => {
+  assert.strictEqual(getStateData('Delhi').onlineEnroll, true);
 });
 
-test('Colorado has same-day registration', () => {
-  assert.strictEqual(getStateData('Colorado').sameDay, true);
+test('Kerala has NVSP registration', () => {
+  assert.ok(getStateData('Kerala').registration.includes('NVSP'));
 });
 
-test('Florida does NOT have same-day registration', () => {
-  assert.strictEqual(getStateData('Florida').sameDay, false);
+test('Ladakh has online enrollment', () => {
+  assert.strictEqual(getStateData('Ladakh').onlineEnroll, true);
 });
 
-test('All 50 states are present in the dataset', () => {
+test('All 36 states and UTs are present in the dataset', () => {
   const states = [
-    'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California',
-    'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia',
-    'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa',
-    'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland',
-    'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri',
-    'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey',
-    'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio',
-    'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina',
-    'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont',
-    'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming',
+    'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+    'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
+    'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
+    'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
+    'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
+    'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+    'Andaman and Nicobar Islands', 'Chandigarh',
+    'Dadra and Nagar Haveli and Daman and Diu',
+    'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry',
   ];
   states.forEach((state) => {
     const r = getStateData(state);
     assert.ok(r !== null, `Missing data for ${state}`);
-    assert.ok(typeof r.deadline === 'string');
-    assert.ok(typeof r.sameDay === 'boolean');
+    assert.ok(typeof r.registration === 'string');
+    assert.ok(typeof r.onlineEnroll === 'boolean');
   });
 });
 
 test('State lookup is case-sensitive (lowercase returns null)', () => {
-  assert.strictEqual(getStateData('texas'), null);
+  assert.strictEqual(getStateData('maharashtra'), null);
 });
 
 console.log('\n🔒 Input Sanitization');
@@ -366,6 +365,89 @@ test('server.js includes request logging middleware', () => {
 
 test('.editorconfig exists for consistent formatting', () => {
   assert.ok(fs.existsSync(join(ROOT, '.editorconfig')));
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 7. ACCESSIBILITY COMPLIANCE
+// ══════════════════════════════════════════════════════════════════════════════
+console.log('\n♿ Accessibility Compliance');
+
+test('index.html has skip-to-content link (WCAG 2.4.1)', () => {
+  assert.ok(htmlSrc.includes('skip-link'));
+  assert.ok(htmlSrc.includes('#main-content'));
+});
+
+test('index.html has lang attribute on html element', () => {
+  assert.ok(htmlSrc.includes('lang="en"'));
+});
+
+test('All form controls have aria-labels', () => {
+  assert.ok(htmlSrc.includes('aria-label="Select your state'));
+  assert.ok(htmlSrc.includes('aria-label="Type your election question"'));
+  assert.ok(htmlSrc.includes('aria-label="Send message"'));
+  assert.ok(htmlSrc.includes('aria-label="Close AI assistant"'));
+});
+
+test('Chat panel has correct ARIA dialog attributes', () => {
+  assert.ok(htmlSrc.includes('role="dialog"'));
+  assert.ok(htmlSrc.includes('aria-modal="true"'));
+  assert.ok(htmlSrc.includes('aria-label="VoterPath AI Assistant"'));
+});
+
+test('Chat messages area has aria-live for screen readers', () => {
+  assert.ok(htmlSrc.includes('aria-live="polite"'));
+  assert.ok(htmlSrc.includes('aria-relevant="additions"'));
+});
+
+test('Progress bar has ARIA progressbar role', () => {
+  assert.ok(htmlSrc.includes('role="progressbar"'));
+  assert.ok(htmlSrc.includes('aria-valuenow'));
+  assert.ok(htmlSrc.includes('aria-valuemin'));
+  assert.ok(htmlSrc.includes('aria-valuemax'));
+});
+
+test('Tooltips use role=tooltip with aria-describedby', () => {
+  assert.ok(htmlSrc.includes('role="tooltip"'));
+  assert.ok(htmlSrc.includes('aria-describedby'));
+});
+
+test('Decorative elements have aria-hidden=true', () => {
+  const ariaHiddenCount = (htmlSrc.match(/aria-hidden="true"/g) || []).length;
+  assert.ok(ariaHiddenCount >= 10, `Expected >=10 aria-hidden elements, got ${ariaHiddenCount}`);
+});
+
+test('script.js respects prefers-reduced-motion', () => {
+  const scriptContent = fs.readFileSync(join(ROOT, 'public', 'script.js'), 'utf8');
+  assert.ok(scriptContent.includes('prefers-reduced-motion'));
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 8. CODE QUALITY VALIDATION
+// ══════════════════════════════════════════════════════════════════════════════
+console.log('\n📝 Code Quality');
+
+test('script.js has JSDoc file header', () => {
+  const scriptContent = fs.readFileSync(join(ROOT, 'public', 'script.js'), 'utf8');
+  assert.ok(scriptContent.includes('@file'), 'script.js should have @file JSDoc tag');
+  assert.ok(scriptContent.includes('@version'), 'script.js should have @version');
+});
+
+test('server.js has JSDoc file header', () => {
+  assert.ok(serverSrc.includes('@file'), 'server.js should have @file JSDoc tag');
+  assert.ok(serverSrc.includes('@module'), 'server.js should have @module tag');
+});
+
+test('No console.log statements in production frontend code (except gtag)', () => {
+  const scriptContent = fs.readFileSync(join(ROOT, 'public', 'script.js'), 'utf8');
+  const consoleLines = scriptContent.split('\n').filter(
+    (line) => line.includes('console.log') && !line.includes('//')
+  );
+  assert.strictEqual(consoleLines.length, 0, 'Frontend should not have console.log');
+});
+
+test('Render and Vercel deployment configs exist', () => {
+  assert.ok(fs.existsSync(join(ROOT, 'render.yaml')));
+  assert.ok(fs.existsSync(join(ROOT, 'vercel.json')));
 });
 
 // ══════════════════════════════════════════════════════════════════════════════

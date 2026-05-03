@@ -2,16 +2,16 @@
 
 > **Demystifying democracy, one step at a time.**
 
-VoterPath is a scroll-driven, AI-powered civic education web app that guides users through the entire US election process — from voter registration to inauguration. Built for the **Google PromptWars Hackathon**, it features a non-partisan Gemini AI chatbot, accessible design, and a premium glassmorphism UI.
+VoterPath is a scroll-driven, AI-powered civic education web app that guides users through the entire Indian election process — from voter registration to the final count. Built for the **Google PromptWars Hackathon**, it features a non-partisan Gemini AI chatbot, accessible design, and a premium glassmorphism UI.
 
 ## ✨ Features
 
 | Feature | Description |
 |---------|-------------|
 | **Scrollytelling Timeline** | Interactive 4-phase election journey animated on scroll |
-| **Gemini AI Chatbot** | Powered by Google's `gemini-2.5-flash` for non-partisan, accurate civic Q&A |
+| **Gemini AI Chatbot** | Powered by Google's `gemini-2.5-flash` for non-partisan, accurate civic Q&A on Indian elections |
 | **Jargon Tooltips** | Instant, accessible definitions for confusing election terms |
-| **State Deadline Selector** | Check voter registration deadlines across all 50 US states |
+| **State/UT Selector** | Check voter registration info across all 28 states and 8 Union Territories |
 | **Dark/Light Theme** | Toggle with localStorage persistence |
 | **Fully Accessible** | WCAG 2.1 AA compliant, keyboard navigable, screen-reader friendly |
 | **Privacy First** | Chat history stored only in browser `sessionStorage` |
@@ -28,7 +28,7 @@ VoterPath is a scroll-driven, AI-powered civic education web app that guides use
 | **Fonts** | Google Fonts (Outfit: 300, 400, 600, 800) |
 | **Deployment** | Google Cloud Run (primary), Render, Vercel |
 | **CI/CD** | Google Cloud Build (`cloudbuild.yaml`) |
-| **Testing** | Node.js built-in `assert` module (50+ unit tests) |
+| **Testing** | Node.js built-in `assert` module (130+ tests across 8 categories) |
 | **Containerization** | Multi-stage Dockerfile with non-root user |
 
 ## 🚀 Quick Start
@@ -68,7 +68,7 @@ The app will be available at [http://localhost:8080](http://localhost:8080).
 npm test
 ```
 
-Expected output: 100+ passing tests covering state logic, input sanitization, phase navigation, security hardening, Google Cloud integration, and server endpoints.
+Expected output: 130+ passing tests covering state logic, input sanitization, phase navigation, security hardening, Google Cloud integration, accessibility compliance, code quality, and server endpoints.
 
 ### 5. Lint
 

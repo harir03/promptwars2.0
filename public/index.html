@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="VoterPath — Your interactive, AI-powered guide to the US election process. Understand registration, research candidates, cast your ballot, and follow the count." />
+  <meta name="description" content="VoterPath — Your interactive, AI-powered guide to the Indian election process. Understand voter registration, EVM voting, election phases, and the counting process." />
   <meta name="theme-color" content="#0d1b3e" />
   <meta name="robots" content="index, follow" />
   <meta name="author" content="VoterPath Team" />
@@ -11,9 +11,9 @@
 
   <!-- Open Graph -->
   <meta property="og:title" content="VoterPath — Interactive Election Assistant" />
-  <meta property="og:description" content="Demystifying democracy, one step at a time. AI-powered civic education using Google Gemini." />
+  <meta property="og:description" content="Demystifying democracy, one step at a time. AI-powered civic education for Indian elections using Google Gemini." />
   <meta property="og:type" content="website" />
-  <meta property="og:locale" content="en_US" />
+  <meta property="og:locale" content="en_IN" />
 
   <title>VoterPath — Interactive Election Assistant</title>
 
@@ -23,14 +23,14 @@
     "@context": "https://schema.org",
     "@type": "WebApplication",
     "name": "VoterPath",
-    "description": "AI-powered, non-partisan guide to the US election process.",
+    "description": "AI-powered, non-partisan guide to the Indian election process.",
     "url": "https://voterpath.onrender.com/",
     "applicationCategory": "EducationalApplication",
     "operatingSystem": "Web",
     "offers": {
       "@type": "Offer",
       "price": "0",
-      "priceCurrency": "USD"
+      "priceCurrency": "INR"
     },
     "creator": {
       "@type": "Organization",
@@ -86,9 +86,9 @@
       <div class="hero-orb orb-3"></div>
     </div>
     <div class="hero-content">
-      <p class="hero-eyebrow">A Guide for Every American</p>
+      <p class="hero-eyebrow">A Guide for Every Indian Citizen</p>
       <h1>Your Vote.<br/><span class="gradient-text">Your Voice.</span></h1>
-      <p class="hero-sub">Follow the election journey from registration to the final count — with a Gemini-powered assistant by your side.</p>
+      <p class="hero-sub">Follow the election journey from voter registration to the final count — with a Gemini-powered assistant by your side.</p>
       <div class="hero-actions">
         <button id="start-journey" class="btn btn-primary">
           <span>Begin the Journey</span>
@@ -120,37 +120,37 @@
           <span class="phase-emoji" aria-hidden="true">📋</span>
           <div>
             <p class="phase-label">Phase 1</p>
-            <h2 id="phase-1-title">Preparation & Registration</h2>
+            <h2 id="phase-1-title">Voter Registration</h2>
           </div>
         </div>
-        <p class="node-summary">Before you can vote, you need to be on the list. Check your status and register early — deadlines vary by state.</p>
+        <p class="node-summary">Before you can vote, your name must appear on the Electoral Roll. Register through the NVSP portal or your local ERO — it's free and takes just minutes.</p>
         <ul class="checklist" aria-label="Registration checklist">
           <li>
             <span class="check-icon" aria-hidden="true">✓</span>
-            <span>Confirm you're a US citizen aged 18+ and a state resident</span>
+            <span>Confirm you are an Indian citizen aged 18+ on the qualifying date (1st January)</span>
           </li>
           <li>
             <span class="check-icon" aria-hidden="true">✓</span>
             <span>
-              <button class="jargon" id="tip-reg-deadline" aria-describedby="tooltip-reg-deadline" aria-expanded="false">Registration deadline</button>
-              <span class="tooltip" id="tooltip-reg-deadline" role="tooltip" aria-hidden="true">The final date your state accepts new voter registrations. Typically 15–30 days before an election, but some states allow same-day registration.</span>
-              is usually 15–30 days before the election
+              <button class="jargon" id="tip-reg-deadline" aria-describedby="tooltip-reg-deadline" aria-expanded="false">Form 6</button>
+              <span class="tooltip" id="tooltip-reg-deadline" role="tooltip" aria-hidden="true">Form 6 is the official application for inclusion of name in the Electoral Roll. You can submit it online via the NVSP portal or offline at your local ERO office.</span>
+              is used to enroll as a new voter on the Electoral Roll
             </span>
           </li>
           <li>
             <span class="check-icon" aria-hidden="true">✓</span>
-            <span>Verify your address after moving — registration doesn't transfer automatically</span>
+            <span>Get your Voter ID (EPIC card) — you can also download the e-EPIC from the Voter Portal</span>
           </li>
         </ul>
         <div class="state-selector-wrapper">
-          <label for="state-select" class="state-label">Get your state's deadline:</label>
-          <select id="state-select" class="state-select">
-            <option value="">-- Select your state --</option>
+          <label for="state-select" class="state-label">Check your state's registration info:</label>
+          <select id="state-select" class="state-select" aria-label="Select your state for registration info">
+            <option value="">-- Select your state/UT --</option>
           </select>
           <div id="state-info" class="state-info" aria-live="polite" aria-atomic="true"></div>
         </div>
-        <a href="https://www.vote.gov/register/" target="_blank" rel="noopener noreferrer" class="card-link">
-          Register to Vote →
+        <a href="https://voters.eci.gov.in/" target="_blank" rel="noopener noreferrer" class="card-link">
+          Register on Voter Portal →
         </a>
       </div>
     </article>
@@ -166,34 +166,34 @@
           <span class="phase-emoji" aria-hidden="true">🔍</span>
           <div>
             <p class="phase-label">Phase 2</p>
-            <h2 id="phase-2-title">Education & Research</h2>
+            <h2 id="phase-2-title">Understanding Elections</h2>
           </div>
         </div>
-        <p class="node-summary">An informed vote is a powerful vote. Learn how elections are structured and how to find trustworthy information.</p>
+        <p class="node-summary">An informed vote is a powerful vote. Learn how Indian elections are structured and how to find trustworthy information about candidates.</p>
         <div class="info-grid">
           <div class="info-card">
             <h3>Types of Elections</h3>
             <p>
-              <button class="jargon" id="tip-primary" aria-describedby="tooltip-primary" aria-expanded="false">Primaries</button>
-              <span class="tooltip" id="tooltip-primary" role="tooltip" aria-hidden="true">An election within a political party to choose who will represent that party in the general election. Open primaries let any voter participate; closed primaries are party-members only.</span>
-              narrow the field. General elections decide winners. Local elections happen year-round.
+              <button class="jargon" id="tip-primary" aria-describedby="tooltip-primary" aria-expanded="false">Lok Sabha</button>
+              <span class="tooltip" id="tooltip-primary" role="tooltip" aria-hidden="true">The Lok Sabha (House of the People) is the lower house of India's Parliament. It has 543 elected seats. Members are directly elected by citizens through first-past-the-post voting in single-member constituencies.</span>
+              elections choose Members of Parliament. Vidhan Sabha elections choose MLAs for state governments. Panchayat and Municipal elections govern at the local level.
             </p>
           </div>
           <div class="info-card">
-            <h3>Ballot Measures</h3>
+            <h3>Election Commission</h3>
             <p>
-              <button class="jargon" id="tip-ballot" aria-describedby="tooltip-ballot" aria-expanded="false">Ballot measures</button>
-              <span class="tooltip" id="tooltip-ballot" role="tooltip" aria-hidden="true">Laws or policy changes that citizens vote on directly, bypassing the legislature. Also called propositions, initiatives, or referendums depending on the state.</span>
-              let you vote directly on laws, not just candidates. Read the full text.
+              <button class="jargon" id="tip-ballot" aria-describedby="tooltip-ballot" aria-expanded="false">ECI</button>
+              <span class="tooltip" id="tooltip-ballot" role="tooltip" aria-hidden="true">The Election Commission of India (ECI) is an autonomous constitutional body responsible for administering elections in India. It enforces the Model Code of Conduct, manages the electoral roll, and oversees the entire voting process.</span>
+              is the autonomous body that conducts free and fair elections across India. It enforces the Model Code of Conduct.
             </p>
           </div>
         </div>
         <div class="resource-list">
-          <h3>Nonpartisan Research Resources</h3>
+          <h3>Official Research Resources</h3>
           <ul aria-label="Research resources">
-            <li><a href="https://ballotpedia.org" target="_blank" rel="noopener noreferrer">Ballotpedia — Candidate profiles & ballot measures</a></li>
-            <li><a href="https://www.vote411.org" target="_blank" rel="noopener noreferrer">VOTE411 — Voter guide by League of Women Voters</a></li>
-            <li><a href="https://www.usa.gov/absentee-voting" target="_blank" rel="noopener noreferrer">USA.gov — Official election information</a></li>
+            <li><a href="https://myneta.info" target="_blank" rel="noopener noreferrer">MyNeta — Candidate criminal records, assets & liabilities</a></li>
+            <li><a href="https://eci.gov.in" target="_blank" rel="noopener noreferrer">ECI — Official Election Commission of India</a></li>
+            <li><a href="https://voters.eci.gov.in" target="_blank" rel="noopener noreferrer">Voter Portal — Check enrollment, download e-EPIC</a></li>
           </ul>
         </div>
       </div>
@@ -210,41 +210,41 @@
           <span class="phase-emoji" aria-hidden="true">🗳️</span>
           <div>
             <p class="phase-label">Phase 3</p>
-            <h2 id="phase-3-title">Action: Cast Your Ballot</h2>
+            <h2 id="phase-3-title">Polling Day: Cast Your Vote</h2>
           </div>
         </div>
-        <p class="node-summary">It's time. Choose the voting method that works best for you — all are equally valid.</p>
+        <p class="node-summary">It's your democratic right. Head to your designated polling booth, verify your identity, and cast your vote on the EVM.</p>
         <div class="voting-options" role="list">
           <div class="voting-option" role="listitem">
-            <span class="option-icon" aria-hidden="true">📬</span>
+            <span class="option-icon" aria-hidden="true">🖥️</span>
             <div>
               <h3>
-                <button class="jargon" id="tip-mailin" aria-describedby="tooltip-mailin" aria-expanded="false">Mail-in Ballot</button>
-                <span class="tooltip" id="tooltip-mailin" role="tooltip" aria-hidden="true">Also called an Absentee Ballot. You request a ballot by mail, fill it out at home, and return it by mail or drop box. Available to all voters in most states.</span>
+                <button class="jargon" id="tip-mailin" aria-describedby="tooltip-mailin" aria-expanded="false">EVM Voting</button>
+                <span class="tooltip" id="tooltip-mailin" role="tooltip" aria-hidden="true">Electronic Voting Machines (EVMs) are used in all Indian elections. They are standalone, battery-operated devices that record votes electronically. Each EVM can handle up to 64 candidates.</span>
               </h3>
-              <p>Request early, sign the envelope, track it online.</p>
+              <p>Press the button next to your candidate's name and symbol. The VVPAT slip confirms your choice.</p>
             </div>
           </div>
           <div class="voting-option" role="listitem">
-            <span class="option-icon" aria-hidden="true">📅</span>
+            <span class="option-icon" aria-hidden="true">📮</span>
             <div>
               <h3>
-                <button class="jargon" id="tip-early" aria-describedby="tooltip-early" aria-expanded="false">Early Voting</button>
-                <span class="tooltip" id="tooltip-early" role="tooltip" aria-hidden="true">In-person voting that begins days or weeks before Election Day at designated polling locations. Helps you avoid Election Day lines and schedule conflicts.</span>
+                <button class="jargon" id="tip-early" aria-describedby="tooltip-early" aria-expanded="false">Postal Ballot</button>
+                <span class="tooltip" id="tooltip-early" role="tooltip" aria-hidden="true">Postal ballots are available for select categories: armed forces personnel, government employees on election duty, persons with disabilities, senior citizens (80+), and COVID-affected voters. Apply through Form 12.</span>
               </h3>
-              <p>In-person, before Election Day. Avoid the rush.</p>
+              <p>Available for armed forces, government staff on duty, senior citizens (80+), and PwD voters.</p>
             </div>
           </div>
           <div class="voting-option" role="listitem">
-            <span class="option-icon" aria-hidden="true">🏛️</span>
+            <span class="option-icon" aria-hidden="true">🚫</span>
             <div>
-              <h3>Election Day</h3>
-              <p>Polls open 7 AM – 8 PM. Bring valid ID. Lines are worth it.</p>
+              <h3>NOTA Option</h3>
+              <p>None of the Above — reject all candidates while still exercising your right to vote.</p>
             </div>
           </div>
         </div>
-        <a href="https://www.vote.gov/find-your-polling-place/" target="_blank" rel="noopener noreferrer" class="card-link">
-          Find Your Polling Place →
+        <a href="https://voters.eci.gov.in/" target="_blank" rel="noopener noreferrer" class="card-link">
+          Find Your Polling Booth →
         </a>
       </div>
     </article>
@@ -260,28 +260,28 @@
           <span class="phase-emoji" aria-hidden="true">📊</span>
           <div>
             <p class="phase-label">Phase 4</p>
-            <h2 id="phase-4-title">The Count & Certification</h2>
+            <h2 id="phase-4-title">Counting & Results</h2>
           </div>
         </div>
-        <p class="node-summary">The polls close, but democracy doesn't stop. Here's what happens between Election Night and Inauguration Day.</p>
+        <p class="node-summary">After all phases of voting are complete, EVMs are stored securely. Here's what happens on counting day and after.</p>
         <ol class="timeline-steps" aria-label="Post-election timeline">
           <li>
-            <strong>Election Night:</strong> Media projections are called, but they are <em>not</em> official.
+            <strong>Counting Day:</strong> EVMs are opened in the presence of candidates' agents. Postal ballots are counted first.
           </li>
           <li>
-            <strong>Weeks 1–3:</strong> All ballots (including mail-in) are officially counted and certified by each state.
+            <strong>Round-by-Round:</strong> Results are announced
+            <button class="jargon" id="tip-ec" aria-describedby="tooltip-ec" aria-expanded="false">round-wise</button>
+            <span class="tooltip" id="tooltip-ec" role="tooltip" aria-hidden="true">EVM counting happens in rounds. Each round covers a set of EVMs from different polling stations. Trends are updated on the ECI results portal in real-time as each round is completed.</span>
+            on the ECI results portal, with trends updated in real-time.
           </li>
           <li>
-            <strong>December:</strong> The
-            <button class="jargon" id="tip-ec" aria-describedby="tooltip-ec" aria-expanded="false">Electoral College</button>
-            <span class="tooltip" id="tooltip-ec" role="tooltip" aria-hidden="true">A body of 538 electors who formally elect the President. Each state gets electors equal to its Congressional delegation. A candidate needs 270 electoral votes to win.</span>
-            electors cast official votes in their state capitals.
+            <strong>VVPAT Verification:</strong> A mandatory sample of VVPAT slips is cross-verified against EVM counts to ensure accuracy.
           </li>
           <li>
-            <strong>January 6:</strong> Congress counts and certifies the Electoral College results.
+            <strong>Declaration:</strong> The Returning Officer declares the winning candidate via Form 21C after final tallying.
           </li>
           <li>
-            <strong>January 20:</strong> Inauguration Day — the new President is sworn in.
+            <strong>Government Formation:</strong> The party or alliance with majority (272+ in Lok Sabha) is invited to form the government.
           </li>
         </ol>
       </div>
@@ -290,11 +290,11 @@
     <!-- CTA Section -->
     <section class="cta-section reveal" aria-labelledby="cta-title">
       <div class="cta-card glass">
-        <span class="cta-icon" aria-hidden="true">🇺🇸</span>
+        <span class="cta-icon" aria-hidden="true">🇮🇳</span>
         <h2 id="cta-title">Ready to exercise your right?</h2>
-        <p>Democracy works when people participate. Every vote is a voice.</p>
+        <p>Democracy works when people participate. Every vote shapes the nation.</p>
         <div class="cta-buttons">
-          <a href="https://www.vote.org/am-i-registered-to-vote/" target="_blank" rel="noopener noreferrer" class="btn btn-primary">Check My Registration</a>
+          <a href="https://voters.eci.gov.in/" target="_blank" rel="noopener noreferrer" class="btn btn-primary">Check My Enrollment</a>
           <button id="open-chat-cta" class="btn btn-secondary">
             <span aria-hidden="true">✨</span> Ask a Question
           </button>
@@ -311,9 +311,9 @@
         Information is non-partisan and sourced from official government resources.
       </p>
       <p class="footer-links">
-        <a href="https://vote.gov" target="_blank" rel="noopener noreferrer">vote.gov</a> ·
-        <a href="https://www.usa.gov/elections" target="_blank" rel="noopener noreferrer">usa.gov/elections</a> ·
-        <a href="https://www.vote411.org" target="_blank" rel="noopener noreferrer">vote411.org</a>
+        <a href="https://eci.gov.in" target="_blank" rel="noopener noreferrer">eci.gov.in</a> ·
+        <a href="https://voters.eci.gov.in" target="_blank" rel="noopener noreferrer">voters.eci.gov.in</a> ·
+        <a href="https://myneta.info" target="_blank" rel="noopener noreferrer">myneta.info</a>
       </p>
     </div>
   </footer>
@@ -330,7 +330,7 @@
     </div>
     <div id="chat-messages" class="chat-messages" aria-live="polite" aria-atomic="false" aria-relevant="additions">
       <div class="chat-msg ai">
-        <p>👋 Hi! I'm your VoterPath AI assistant, powered by Google Gemini. Ask me anything about the US election process — registration deadlines, how voting works, what to bring on Election Day, and more!</p>
+        <p>👋 Namaste! I'm your VoterPath AI assistant, powered by Google Gemini. Ask me anything about Indian elections — voter registration, EVM voting, election phases, how results are counted, and more!</p>
       </div>
     </div>
     <div class="chat-input-area">
@@ -342,6 +342,7 @@
         placeholder="Ask about elections…"
         maxlength="500"
         autocomplete="off"
+        aria-label="Type your election question"
       />
       <button id="chat-send" class="chat-send-btn" aria-label="Send message">
         <span aria-hidden="true">➤</span>
